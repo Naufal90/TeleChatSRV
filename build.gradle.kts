@@ -27,7 +27,7 @@ allprojects {
 
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(21)
+            languageVersion.set(JavaLanguageVersion.of(21))
         }
     }
 }
@@ -35,7 +35,7 @@ allprojects {
 subprojects {
     tasks.withType<JavaCompile> {
         options.encoding = Charsets.UTF_8.name()
-        options.release = 21
+        options.release.set(21)
     }
     tasks.withType<Javadoc> {
         options.encoding = Charsets.UTF_8.name()
@@ -51,25 +51,24 @@ subprojects {
 }
 
 paperweight {
-    serverProject = project(":forktest-server")
+    serverProject.set(project(":forktest-server"))
 
-    remapRepo = paperMavenPublicUrl
-    decompileRepo = paperMavenPublicUrl
+    remapRepo.set(paperMavenPublicUrl)
+decompileRepo.set(paperMavenPublicUrl)
 
     usePaperUpstream(providers.gradleProperty("paperRef")) {
         withPaperPatcher {
-            apiPatchDir = layout.projectDirectory.dir("patches/api")
-            apiOutputDir = layout.projectDirectory.dir("forktest-api")
-
-            serverPatchDir = layout.projectDirectory.dir("patches/server")
-            serverOutputDir = layout.projectDirectory.dir("forktest-server")
+            apiPatchDir.set(layout.projectDirectory.dir("patches/api"))
+apiOutputDir.set(layout.projectDirectory.dir("forktest-api"))
+serverPatchDir.set(layout.projectDirectory.dir("patches/server"))
+serverOutputDir.set(layout.projectDirectory.dir("forktest-server"))
 
         }
         patchTasks.register("generatedApi") {
-            isBareDirectory = true
-            upstreamDirPath = "paper-api-generator/generated"
-            patchDir = layout.projectDirectory.dir("patches/generatedApi")
-            outputDir = layout.projectDirectory.dir("paper-api-generator/generated")
+            isBareDirectory.set(true)
+            upstreamDirPath.set("paper-api-generator/generated")
+            patchDir.set(layout.projectDirectory.dir("patches/generatedApi"))
+outputDir.set(layout.projectDirectory.dir("paper-api-generator/generated"))
         }
     }
 }
@@ -79,12 +78,13 @@ paperweight {
 //
 
 tasks.generateDevelopmentBundle {
-    apiCoordinates = "com.example.paperfork:forktest-api"
-    libraryRepositories = listOf(
-        "https://repo.maven.apache.org/maven2/",
-        paperMavenPublicUrl,
-        // "https://my.repo/", // This should be a repo hosting your API (in this example, 'com.example.paperfork:forktest-api')
+    apiCoordinates.set("com.example.paperfork:forktest-api")
+    libraryRepositories.set(
+    listOf(
+        "https://example.com/repository",
+        "https://example.com/another-repository"
     )
+)
 }
 
 allprojects {
