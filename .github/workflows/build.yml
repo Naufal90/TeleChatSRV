@@ -21,3 +21,9 @@ jobs:
 
     - name: Build with Gradle
       run: ./gradlew build
+
+    - name: Upload Plugin Jar
+      uses: actions/upload-artifact@v3
+      with:
+        name: plugin-jar
+        path: build/libs/*.jar
