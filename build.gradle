@@ -16,7 +16,21 @@ dependencies {
 sourceSets {
     main {
         resources {
-            srcDir 'src/main/resources'
+            srcDir 'src/main/resources' // Lokasi folder resources
         }
+    }
+}
+
+tasks.processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // Mencegah konflik file plugin.yml
+}
+
+tasks.compileJava {
+    options.encoding = 'UTF-8' // Menentukan encoding agar tidak ada masalah karakter
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17) // Gunakan Java 17
     }
 }
