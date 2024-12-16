@@ -8,18 +8,25 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class MyPlugin extends JavaPlugin implements Listener {
 
-    // URL endpoint bot WhatsApp
-    private static final String BOT_ENDPOINT = "http://localhost:3000/webhook"; // Ganti sesuai kebutuhan Anda
+    private String botEndpoint; // Untuk menyimpan endpoint dari config.yml
 
     @Override
     public void onEnable() {
-        getLogger().info("MyPlugin aktif!");
+        // Membuat folder dan file config.yml jika belum ada
+        createPluginFolderAndConfig();
+
+        // Membaca konfigurasi
+        botEndpoint = getConfig().getString("bot.endpoint", "http://localhost:3000/webhook"); // Membaca endpoint dari config.yml
+        getLogger().info("MyPlugin aktif! Endpoint bot: " + botEndpoint);
+        
+        // Daftarkan event listener
         Bukkit.getPluginManager().registerEvents(this, this);
     }
 
@@ -50,7 +57,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
     private void sendToBot(String message) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             try {
-                URL url = new URL(BOT_ENDPOINT);
+                URL url = new URL(botEndpoint);  // Menggunakan endpoint dari config.yml
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -72,5 +79,17 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 getLogger().severe("Error mengirim pesan ke bot: " + e.getMessage());
             }
         });
+    }
+
+    // Fungsi untuk membuat folder plugin dan file config.yml jika belum ada
+    private void createPluginFolderAndConfig() {
+        File pluginFolder = new File(getDataFolder(), "config.yml");
+        if (!pluginFolder.exists()) {
+            // Jika folder belum ada, buat direktori plugin
+            getDataFolder().mkdirs();
+            
+            // Salin file default config.yml dari plugin JAR ke folder plugin
+            saveDefaultConfig();
+        }
     }
 }
