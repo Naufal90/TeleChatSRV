@@ -26,7 +26,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         createPluginFolderAndConfig();
 
         // Membaca konfigurasi
-        botEndpoint = getConfig().getString("bot.endpoint", "http://localhost:3000/webhook"); // Membaca endpoint dari config.yml
+        botEndpoint = getConfig().getString("bot.endpoint", "http://localhost:3000/minecraft"); // Membaca endpoint dari config.yml
         getLogger().info("MyPlugin aktif! Endpoint bot: " + botEndpoint);
         
         // Daftarkan event listener
