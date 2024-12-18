@@ -1,4 +1,4 @@
-package com.example.myplugin;
+package com.example.wachatsrv;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
