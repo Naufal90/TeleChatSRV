@@ -1,4 +1,4 @@
-package com.example.wachatsrv;
+package com.example.WAChatSRV;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
