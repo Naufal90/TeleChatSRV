@@ -1,5 +1,18 @@
 name: WAChatSRV
 version: 1.0
-main: com.example.myplugin.WAChatSRV
-api-version: 1.19
-description: Plugin untuk meneruskan aktivitas Minecraft ke bot WhatsApp
+main: com.example.WAChatSRV
+api-version: 1.18
+commands:
+  reloadwasrv:
+    description: Muat Ulang Setelan WAChatSRV
+    usage: /reloadwasrv
+  setwebsocket:
+    description: Atur EndPoint WebSocket Dinamis
+    usage: /setwebsocket <endpoint>
+permissions:
+  wasrv.reload:
+    description: Aktifkan Muat Ulang Config
+    default: op
+  wasrv.setwebsocket:
+    description: Aktifkan Pengaturan EndPoint WebSocket
+    default: op
