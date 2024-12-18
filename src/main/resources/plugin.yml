@@ -1,6 +1,6 @@
 name: WAChatSRV
 version: 1.0
-main: com.example.WAChatSRV
+main: com.example.WAChatSRV.MyPlugin
 api-version: 1.18
 commands:
   reloadwasrv:
