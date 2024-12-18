@@ -1,6 +1,9 @@
 package com.example.WAChatSRV;
 
 import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
@@ -91,5 +94,34 @@ public class MyPlugin extends JavaPlugin implements Listener {
             // Salin file default config.yml dari plugin JAR ke folder plugin
             saveDefaultConfig();
         }
+    }
+
+    // Menangani perintah untuk mengganti endpoint melalui perintah in-game
+    @Override
+    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if (cmd.getName().equalsIgnoreCase("setwebsocket")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                if (player.hasPermission("wasrv.setwebsocket")) {
+                    if (args.length == 1) {
+                        String newEndpoint = args[0];
+                        // Mengubah endpoint dan menyimpan ke config
+                        botEndpoint = newEndpoint;
+                        getConfig().set("bot.endpoint", newEndpoint);
+                        saveConfig();
+                        player.sendMessage("Endpoint WebSocket berhasil diperbarui menjadi: " + newEndpoint);
+                        getLogger().info("Endpoint WebSocket diperbarui menjadi: " + newEndpoint);
+                    } else {
+                        player.sendMessage("Penggunaan yang benar: /setwebsocket <endpoint>");
+                    }
+                } else {
+                    player.sendMessage("Anda tidak memiliki izin untuk mengubah endpoint.");
+                }
+            } else {
+                getLogger().warning("Perintah hanya bisa dijalankan oleh pemain.");
+            }
+            return true;
+        }
+        return false;
     }
 }
