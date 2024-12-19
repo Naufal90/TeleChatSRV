@@ -13,8 +13,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.Socket;
 
 public class MyPlugin extends JavaPlugin implements Listener {
 
