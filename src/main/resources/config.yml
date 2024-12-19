@@ -1,1 +1,3 @@
-bot-endpoint: "https://example.com/minecraft"
+bot:
+  host: "localhost"  # Ganti dengan alamat IP atau hostname bot
+  port: 12345        # Ganti dengan port yang digunakan bot
