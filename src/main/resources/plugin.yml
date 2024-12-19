@@ -6,13 +6,15 @@ commands:
   reloadwasrv:
     description: Muat Ulang Setelan WAChatSRV
     usage: /reloadwasrv
-  setwebsocket:
-    description: Atur EndPoint WebSocket Dinamis
-    usage: /setwebsocket <endpoint>
+    permission: wasrv.reload
+  settcp:
+    description: Atur Host dan Port TCP Bot
+    usage: /settcp <host> <port>
+    permission: wasrv.settcp
 permissions:
   wasrv.reload:
     description: Aktifkan Muat Ulang Config
     default: op
-  wasrv.setwebsocket:
-    description: Aktifkan Pengaturan EndPoint WebSocket
+  wasrv.settcp:
+    description: Aktifkan Pengaturan Host dan Port TCP
     default: op
