@@ -19,6 +19,8 @@ public class MyPlugin extends JavaPlugin implements Listener {
 
     private String botHost;
     private int botPort;
+    private Socket botSocket;
+    private OutputStream botOutputStream;
 
     @Override
     public void onEnable() {
@@ -28,16 +30,30 @@ public class MyPlugin extends JavaPlugin implements Listener {
         // Membaca konfigurasi dari file config.yml
         botHost = getConfig().getString("bot.host", "localhost");
         botPort = getConfig().getInt("bot.port", 8080);
-        
-        getLogger().info("MyPlugin aktif! Host: " + botHost + ", Port: " + botPort);
-        
+
+        // Mencoba membuka koneksi ke bot
+        try {
+            botSocket = new Socket(botHost, botPort);
+            botOutputStream = botSocket.getOutputStream();
+            getLogger().info("Koneksi ke bot berhasil dibuat! Host: " + botHost + ", Port: " + botPort);
+        } catch (Exception e) {
+            getLogger().severe("Gagal membuat koneksi ke bot: " + e.getMessage());
+        }
+
         // Daftarkan event listener
         Bukkit.getPluginManager().registerEvents(this, this);
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("MyPlugin dimatikan!");
+        // Menutup koneksi ke bot saat plugin dimatikan
+        try {
+            if (botOutputStream != null) botOutputStream.close();
+            if (botSocket != null) botSocket.close();
+            getLogger().info("Koneksi ke bot ditutup.");
+        } catch (Exception e) {
+            getLogger().severe("Error menutup koneksi ke bot: " + e.getMessage());
+        }
     }
 
     @EventHandler
@@ -60,29 +76,24 @@ public class MyPlugin extends JavaPlugin implements Listener {
     }
 
     private void sendToBot(String type, String player, String message) {
-    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-        try {
-            // Membuat koneksi ke bot melalui TCP (bukan HTTP)
-            Socket socket = new Socket(botHost, botPort);
-            OutputStream os = socket.getOutputStream();
-            
-            // Membuat payload JSON dengan type, player, dan message
-            String jsonPayload = String.format("{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\"}", type, player, message);
-            
-            // Mengirimkan data ke bot
-            os.write(jsonPayload.getBytes());
-            os.flush();
-            
-            // Menutup koneksi setelah data dikirim
-            socket.close();
-            
-            getLogger().info("Pesan berhasil dikirim ke bot!");
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                if (botOutputStream != null) {
+                    // Membuat payload JSON dengan type, player, dan message
+                    String jsonPayload = String.format("{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\"}", type, player, message);
 
-        } catch (Exception e) {
-            getLogger().severe("Error mengirim pesan ke bot: " + e.getMessage());
-        }
-    });
-}
+                    // Mengirimkan data ke bot
+                    botOutputStream.write(jsonPayload.getBytes());
+                    botOutputStream.flush();
+                    getLogger().info("Pesan berhasil dikirim ke bot: " + jsonPayload);
+                } else {
+                    getLogger().severe("OutputStream ke bot tidak tersedia!");
+                }
+            } catch (Exception e) {
+                getLogger().severe("Error mengirim pesan ke bot: " + e.getMessage());
+            }
+        });
+    }
 
     // Fungsi untuk membuat folder plugin dan file config.yml jika belum ada
     private void createPluginFolderAndConfig() {
@@ -106,7 +117,17 @@ public class MyPlugin extends JavaPlugin implements Listener {
         botHost = getConfig().getString("bot.host", "localhost");
         botPort = getConfig().getInt("bot.port", 8080);
 
-        getLogger().info("Konfigurasi diperbarui! Host: " + botHost + ", Port: " + botPort);
+        // Memperbarui koneksi ke bot
+        try {
+            if (botOutputStream != null) botOutputStream.close();
+            if (botSocket != null) botSocket.close();
+
+            botSocket = new Socket(botHost, botPort);
+            botOutputStream = botSocket.getOutputStream();
+            getLogger().info("Koneksi ke bot diperbarui! Host: " + botHost + ", Port: " + botPort);
+        } catch (Exception e) {
+            getLogger().severe("Gagal memperbarui koneksi ke bot: " + e.getMessage());
+        }
     }
 
     // Menangani perintah untuk mengganti host dan port melalui perintah in-game atau console
@@ -130,6 +151,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 getConfig().set("bot.port", newPort);
                 saveConfig();
 
+                reloadPlugin(); // Reload untuk memperbarui koneksi
                 sender.sendMessage("Host dan port TCP diperbarui menjadi: " + newHost + ":" + newPort);
                 return true;
             } else {
@@ -140,13 +162,6 @@ public class MyPlugin extends JavaPlugin implements Listener {
 
         // Perintah untuk mereload plugin
         if (cmd.getName().equalsIgnoreCase("reloadwasrv")) {
-            // Pastikan yang menjalankan perintah adalah player atau console
-            if (sender instanceof Player && !sender.hasPermission("plugin.reload")) {
-                sender.sendMessage("Anda tidak memiliki izin untuk mereload plugin.");
-                return false;
-            }
-
-            // Melakukan reload plugin
             reloadPlugin();
             sender.sendMessage("Plugin berhasil direload!");
             return true;
@@ -154,4 +169,4 @@ public class MyPlugin extends JavaPlugin implements Listener {
 
         return false;
     }
-                }
+}
