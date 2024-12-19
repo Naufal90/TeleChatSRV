@@ -85,7 +85,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
                     // Mengirimkan data ke bot
                     botOutputStream.write(jsonPayload.getBytes());
                     botOutputStream.flush();
-                    getLogger().info("Pesan berhasil dikirim ke bot: " + jsonPayload);
+                    getLogger().info("Pesan berhasil dikirim ke bot");
                 } else {
                     getLogger().severe("OutputStream ke bot tidak tersedia!");
                 }
