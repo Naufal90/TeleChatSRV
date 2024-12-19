@@ -61,32 +61,29 @@ public class MyPlugin extends JavaPlugin implements Listener {
     }
 
     private void sendToBot(String type, String player, String message) {
-        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-            try {
-                URL url = new URL("http://" + botHost + ":" + botPort + "/minecraft");  // Menggunakan host dan port dari config.yml
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
+    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+        try {
+            // Membuat koneksi ke bot melalui TCP (bukan HTTP)
+            Socket socket = new Socket(botHost, botPort);
+            OutputStream os = socket.getOutputStream();
+            
+            // Membuat payload JSON dengan type, player, dan message
+            String jsonPayload = String.format("{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\"}", type, player, message);
+            
+            // Mengirimkan data ke bot
+            os.write(jsonPayload.getBytes());
+            os.flush();
+            
+            // Menutup koneksi setelah data dikirim
+            socket.close();
+            
+            getLogger().info("Pesan berhasil dikirim ke bot!");
 
-                // Membuat payload JSON dengan type, player, dan message
-                String jsonPayload = String.format("{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\"}", type, player, message);
-                try (OutputStream os = conn.getOutputStream()) {
-                    os.write(jsonPayload.getBytes());
-                    os.flush();
-                }
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    getLogger().info("Pesan berhasil dikirim ke bot!");
-                } else {
-                    getLogger().warning("Gagal mengirim pesan ke bot. Kode respons: " + responseCode);
-                }
-            } catch (Exception e) {
-                getLogger().severe("Error mengirim pesan ke bot: " + e.getMessage());
-            }
-        });
-    }
+        } catch (Exception e) {
+            getLogger().severe("Error mengirim pesan ke bot: " + e.getMessage());
+        }
+    });
+}
 
     // Fungsi untuk membuat folder plugin dan file config.yml jika belum ada
     private void createPluginFolderAndConfig() {
