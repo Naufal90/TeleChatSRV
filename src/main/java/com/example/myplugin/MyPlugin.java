@@ -3,7 +3,6 @@ package com.example.WAChatSRV;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -46,22 +45,22 @@ public class MyPlugin extends JavaPlugin implements Listener {
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String player = event.getPlayer().getName();
         String message = event.getMessage();
-        sendToBot("[Chat] " + player + ": " + message);
+        sendToBot("chat", player, message);
     }
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         String player = event.getPlayer().getName();
-        sendToBot("Pemain " + player + " bergabung ke server!");
+        sendToBot("join", player, "Bergabung ke server");
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         String player = event.getPlayer().getName();
-        sendToBot("Pemain " + player + " keluar dari server.");
+        sendToBot("leave", player, "Keluar dari server");
     }
 
-    private void sendToBot(String message) {
+    private void sendToBot(String type, String player, String message) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             try {
                 URL url = new URL("http://" + botHost + ":" + botPort + "/minecraft");  // Menggunakan host dan port dari config.yml
@@ -70,7 +69,8 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 conn.setRequestProperty("Content-Type", "application/json");
                 conn.setDoOutput(true);
 
-                String jsonPayload = "{\"message\":\"" + message + "\"}";
+                // Membuat payload JSON dengan type, player, dan message
+                String jsonPayload = String.format("{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\"}", type, player, message);
                 try (OutputStream os = conn.getOutputStream()) {
                     os.write(jsonPayload.getBytes());
                     os.flush();
@@ -103,6 +103,16 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // Fungsi untuk reload plugin
+    public void reloadPlugin() {
+        // Memuat ulang konfigurasi
+        reloadConfig();
+        botHost = getConfig().getString("bot.host", "localhost");
+        botPort = getConfig().getInt("bot.port", 8080);
+
+        getLogger().info("Konfigurasi diperbarui! Host: " + botHost + ", Port: " + botPort);
+    }
+
     // Menangani perintah untuk mengganti host dan port melalui perintah in-game atau console
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -131,6 +141,21 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 return false;
             }
         }
+
+        // Perintah untuk mereload plugin
+        if (cmd.getName().equalsIgnoreCase("reloadwasrv")) {
+            // Pastikan yang menjalankan perintah adalah player atau console
+            if (sender instanceof Player && !sender.hasPermission("plugin.reload")) {
+                sender.sendMessage("Anda tidak memiliki izin untuk mereload plugin.");
+                return false;
+            }
+
+            // Melakukan reload plugin
+            reloadPlugin();
+            sender.sendMessage("Plugin berhasil direload!");
+            return true;
+        }
+
         return false;
     }
-}
+                }
