@@ -29,12 +29,13 @@ public class MyPlugin extends JavaPlugin implements Listener {
     public void onEnable() {
         createPluginFolderAndConfig();
 
-        botHost = getConfig().getString("bot.host", "localhost");
-        botPort = getConfig().getInt("bot.port", 8080);
+        // Mengambil host dan port dari file konfigurasi
+        botHost = getConfig().getString("bot.host", "localhost");  // Ganti dengan host Replit jika diperlukan
+        botPort = getConfig().getInt("bot.port", 8080);  // Port bot di Replit
 
-        connectToBot();
+        connectToBot();  // Menyambungkan ke bot
 
-        Bukkit.getPluginManager().registerEvents(this, this);
+        Bukkit.getPluginManager().registerEvents(this, this);  // Mendaftarkan event listener
     }
 
     @Override
@@ -44,6 +45,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // Event handler untuk chat player
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String player = event.getPlayer().getName();
@@ -51,18 +53,21 @@ public class MyPlugin extends JavaPlugin implements Listener {
         sendToBot("chat", player, message, null, null, null);
     }
 
+    // Event handler ketika player bergabung
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         String player = event.getPlayer().getName();
         sendToBot("join", player, null, null, null, null);
     }
 
+    // Event handler ketika player keluar
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         String player = event.getPlayer().getName();
         sendToBot("leave", player, null, null, null, null);
     }
 
+    // Event handler ketika player mati
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
@@ -74,6 +79,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         sendToBot("death", player.getName(), null, reason, null, coordinates);
     }
 
+    // Event handler untuk block break (mining)
     @EventHandler
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
@@ -85,6 +91,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         sendToBot("mining", player.getName(), null, null, blockType, coordinates);
     }
 
+    // Fungsi untuk mengirim data ke bot
     private void sendToBot(String type, String player, String message, String reason, String block, String coordinates) {
         if (botWebSocket != null) {
             String jsonPayload = String.format(
@@ -99,11 +106,15 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // Fungsi untuk menghubungkan plugin ke bot menggunakan WebSocket
     private void connectToBot() {
         try {
             HttpClient client = HttpClient.newHttpClient();
+
+            // Pastikan botHost diambil dari konfigurasi atau URL yang benar dari Replit
+            String botURL = "wss://" + botHost + ":" + botPort; // Gunakan wss:// jika bot menggunakan HTTPS
             botWebSocket = client.newWebSocketBuilder()
-                    .buildAsync(URI.create("ws://" + botHost + ":" + botPort), new WebSocket.Listener() {
+                    .buildAsync(URI.create(botURL), new WebSocket.Listener() {
                         @Override
                         public void onOpen(WebSocket webSocket) {
                             getLogger().info("Koneksi WebSocket berhasil terhubung ke bot!");
@@ -128,6 +139,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // Membuat folder plugin dan konfigurasi jika belum ada
     private void createPluginFolderAndConfig() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
@@ -138,6 +150,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
+    // Perintah untuk mengubah host dan port bot
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("settcp")) {
@@ -175,4 +188,4 @@ public class MyPlugin extends JavaPlugin implements Listener {
 
         return false;
     }
-                             }
+}
