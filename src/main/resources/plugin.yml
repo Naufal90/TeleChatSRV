@@ -1,20 +1,19 @@
-name: WAChatSRV
+name: TELEChatSRV
 version: 1.0
-main: com.example.WAChatSRV.MyPlugin
-api-version: 1.18
+main: com.example.TELEChatSRV.MyPlugin
+author: Naufal90
+description: Plugin untuk mengirimkan notifikasi server Minecraft ke Telegram.
+api-version: 1.19
 commands:
-  reloadwasrv:
-    description: Muat Ulang Setelan WAChatSRV
-    usage: /reloadwasrv
-    permission: wasrv.reload
-  settcp:
-    description: Atur Host dan Port TCP Bot
-    usage: /settcp <host> <port>
-    permission: wasrv.settcp
+  settg:
+    description: Mengatur token dan chat ID bot Telegram.
+    usage: /settg <token> <chat_id>
+    permission: wachat.admin
+  reloadtg:
+    description: Reload konfigurasi Telegram dari file config.yml.
+    usage: /reloadtg
+    permission: wachat.admin
 permissions:
-  wasrv.reload:
-    description: Aktifkan Muat Ulang Config
-    default: op
-  wasrv.settcp:
-    description: Aktifkan Pengaturan Host dan Port TCP
+  wachat.admin:
+    description: Memberikan akses untuk mengatur plugin Telegram.
     default: op
