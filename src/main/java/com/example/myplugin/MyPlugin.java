@@ -1,4 +1,4 @@
-package com.example.WAChatSRV;
+package com.example.TELEChatSRV;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -13,36 +13,30 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.WebSocket;
-import java.util.concurrent.CompletionStage;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 
 public class MyPlugin extends JavaPlugin implements Listener {
 
-    private String botHost;
-    private int botPort;
-    private WebSocket botWebSocket;
+    private String botToken; // Token bot Telegram
+    private String chatId;  // ID grup atau chat Telegram
 
     @Override
     public void onEnable() {
         createPluginFolderAndConfig();
 
-        // Mengambil host dan port dari file konfigurasi
-        botHost = getConfig().getString("bot.host", "localhost");  // Ganti dengan host Replit jika diperlukan
-        botPort = getConfig().getInt("bot.port", 8080);  // Port bot di Replit
+        // Ambil konfigurasi dari file
+        botToken = getConfig().getString("bot.token", "");  // Masukkan token bot Telegram Anda
+        chatId = getConfig().getString("bot.chat_id", ""); // Masukkan ID grup atau pengguna Telegram Anda
 
-        connectToBot();  // Menyambungkan ke bot
-
-        Bukkit.getPluginManager().registerEvents(this, this);  // Mendaftarkan event listener
+        Bukkit.getPluginManager().registerEvents(this, this);  // Daftarkan listener
     }
 
     @Override
     public void onDisable() {
-        if (botWebSocket != null) {
-            botWebSocket.sendClose(WebSocket.NORMAL_CLOSURE, "Plugin dimatikan");
-        }
+        getLogger().info("Plugin dimatikan.");
     }
 
     // Event handler untuk chat player
@@ -50,21 +44,21 @@ public class MyPlugin extends JavaPlugin implements Listener {
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String player = event.getPlayer().getName();
         String message = event.getMessage();
-        sendToBot("chat", player, message, null, null, null);
+        sendToTelegram(String.format("*[Chat]*\n*%s*: %s", player, message));
     }
 
     // Event handler ketika player bergabung
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         String player = event.getPlayer().getName();
-        sendToBot("join", player, null, null, null, null);
+        sendToTelegram(String.format("*[Join]*\n*%s* telah bergabung ke server!", player));
     }
 
     // Event handler ketika player keluar
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         String player = event.getPlayer().getName();
-        sendToBot("leave", player, null, null, null, null);
+        sendToTelegram(String.format("*[Leave]*\n*%s* telah keluar dari server.", player));
     }
 
     // Event handler ketika player mati
@@ -76,7 +70,7 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 player.getLocation().getBlockX(),
                 player.getLocation().getBlockY(),
                 player.getLocation().getBlockZ());
-        sendToBot("death", player.getName(), null, reason, null, coordinates);
+        sendToTelegram(String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s", player.getName(), reason, coordinates));
     }
 
     // Event handler untuk block break (mining)
@@ -88,54 +82,42 @@ public class MyPlugin extends JavaPlugin implements Listener {
                 event.getBlock().getLocation().getBlockX(),
                 event.getBlock().getLocation().getBlockY(),
                 event.getBlock().getLocation().getBlockZ());
-        sendToBot("mining", player.getName(), null, null, blockType, coordinates);
+        sendToTelegram(String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s", player.getName(), blockType, coordinates));
     }
 
-    // Fungsi untuk mengirim data ke bot
-    private void sendToBot(String type, String player, String message, String reason, String block, String coordinates) {
-        if (botWebSocket != null) {
-            String jsonPayload = String.format(
-                    "{\"type\":\"%s\", \"player\":\"%s\", \"message\":\"%s\", \"reason\":\"%s\", \"block\":\"%s\", \"coordinates\":\"%s\"}",
-                    type, player, message != null ? message : "",
-                    reason != null ? reason : "", block != null ? block : "",
-                    coordinates != null ? coordinates : "");
-
-            botWebSocket.sendText(jsonPayload, true);
-        } else {
-            getLogger().severe("WebSocket tidak terhubung ke bot!");
+    // Fungsi untuk mengirim pesan ke Telegram
+    private void sendToTelegram(String message) {
+        if (botToken.isEmpty() || chatId.isEmpty()) {
+            getLogger().severe("Token atau ID grup Telegram belum dikonfigurasi!");
+            return;
         }
-    }
 
-    // Fungsi untuk menghubungkan plugin ke bot menggunakan WebSocket
-    private void connectToBot() {
         try {
-            HttpClient client = HttpClient.newHttpClient();
+            String apiUrl = String.format("https://api.telegram.org/bot%s/sendMessage", botToken);
+            String payload = String.format("chat_id=%s&text=%s&parse_mode=Markdown",
+                    URLEncoder.encode(chatId, "UTF-8"),
+                    URLEncoder.encode(message, "UTF-8"));
 
-            // Pastikan botHost diambil dari konfigurasi atau URL yang benar dari Replit
-            String botURL = "wss://" + botHost + ":" + botPort; // Gunakan wss:// jika bot menggunakan HTTPS
-            botWebSocket = client.newWebSocketBuilder()
-                    .buildAsync(URI.create(botURL), new WebSocket.Listener() {
-                        @Override
-                        public void onOpen(WebSocket webSocket) {
-                            getLogger().info("Koneksi WebSocket berhasil terhubung ke bot!");
-                            webSocket.request(1);
-                        }
+            // Kirim permintaan POST ke API Telegram
+            HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
 
-                        @Override
-                        public void onError(WebSocket webSocket, Throwable error) {
-                            getLogger().severe("Error pada WebSocket: " + error.getMessage());
-                        }
+            // Kirim payload
+            try (OutputStream os = connection.getOutputStream()) {
+                os.write(payload.getBytes());
+                os.flush();
+            }
 
-                        @Override
-                        public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-                            getLogger().info("Pesan diterima dari bot: " + data);
-                            webSocket.request(1);
-                            return null;
-                        }
-                    })
-                    .join();
+            // Cek respons
+            int responseCode = connection.getResponseCode();
+            if (responseCode == 200) {
+                getLogger().info("Pesan terkirim ke Telegram: " + message);
+            } else {
+                getLogger().severe("Gagal mengirim pesan ke Telegram. Kode respons: " + responseCode);
+            }
         } catch (Exception e) {
-            getLogger().severe("Gagal menghubungkan WebSocket ke bot: " + e.getMessage());
+            getLogger().severe("Error saat mengirim pesan ke Telegram: " + e.getMessage());
         }
     }
 
@@ -150,42 +132,34 @@ public class MyPlugin extends JavaPlugin implements Listener {
         }
     }
 
-    // Perintah untuk mengubah host dan port bot
+    // Perintah untuk mengatur token dan chat ID
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (command.getName().equalsIgnoreCase("settcp")) {
+        if (command.getName().equalsIgnoreCase("settg")) {
             if (args.length == 2) {
-                try {
-                    botHost = args[0];
-                    botPort = Integer.parseInt(args[1]);
+                botToken = args[0];
+                chatId = args[1];
 
-                    getConfig().set("bot.host", botHost);
-                    getConfig().set("bot.port", botPort);
-                    saveConfig();
+                getConfig().set("bot.token", botToken);
+                getConfig().set("bot.chat_id", chatId);
+                saveConfig();
 
-                    connectToBot(); // Menyambungkan ulang ke bot
-
-                    sender.sendMessage("Host dan port telah diperbarui ke: " + botHost + ":" + botPort);
-                } catch (NumberFormatException e) {
-                    sender.sendMessage("Port harus berupa angka!");
-                }
+                sender.sendMessage("Token dan ID grup Telegram berhasil diperbarui!");
                 return true;
             } else {
-                sender.sendMessage("Penggunaan: /settcp <host> <port>");
+                sender.sendMessage("Penggunaan: /settg <token> <chat_id>");
                 return false;
             }
         }
 
-        if (command.getName().equalsIgnoreCase("reloadwasrv")) {
+        if (command.getName().equalsIgnoreCase("reloadtg")) {
             reloadConfig();
-            botHost = getConfig().getString("bot.host", "localhost");
-            botPort = getConfig().getInt("bot.port", 8080);
-
-            connectToBot(); // Menyambungkan ulang ke bot
-            sender.sendMessage("Plugin telah berhasil di-reload!");
+            botToken = getConfig().getString("bot.token", "");
+            chatId = getConfig().getString("bot.chat_id", "");
+            sender.sendMessage("Konfigurasi Telegram telah di-reload!");
             return true;
         }
 
         return false;
     }
-}
+    }
