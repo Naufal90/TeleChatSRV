@@ -5,6 +5,6 @@ pluginManagement {
     }
 }
 
-rootProject.name = "WAChatSRV"
+rootProject.name = "TeleChatSRV"
 
 include("forktest-api", "forktest-server")
