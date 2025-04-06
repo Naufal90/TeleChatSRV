@@ -1,5 +1,5 @@
 name: TeleChatSRV
-version: 1.0
+version: ${version}
 main: com.naufal90.TeleChatSRV.TeleSRV
 author: Naufal90
 description: Plugin untuk mengirimkan notifikasi server Minecraft ke Telegram.
