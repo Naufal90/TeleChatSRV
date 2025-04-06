@@ -3,7 +3,7 @@ name: Build Plugin
 on:
   push:
     branches:
-      - With_Filter_DeepSeek
+      - With_Filter_Deepseek
  
 jobs:
   build:
