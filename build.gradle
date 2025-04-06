@@ -34,3 +34,15 @@ java {
         languageVersion = JavaLanguageVersion.of(17) // Gunakan Java 17
     }
 }
+
+// Ambil versi dari environment variable atau fallback ke DEV
+def buildVersion = System.getenv("PLUGIN_VERSION") ?: "DEV"
+
+// Set versi project dan konfigurasi output JAR
+version = buildVersion
+
+jar {
+    archiveBaseName.set("TeleChatSRV")
+    archiveVersion.set("V${version.replace("v", "")}") // Hilangkan huruf 'v' kalau ada
+    destinationDirectory.set(file("$buildDir/libs")) // Folder output
+}
