@@ -21,7 +21,9 @@ jobs:
 
     - name: Build with Gradle
       run: ./gradlew build
-
+      env:
+        PLUGIN_VERSION: ${{ github.ref_name }}
+    
     - name: Create GitHub Release and Upload Jar
       uses: softprops/action-gh-release@v1
       with:
