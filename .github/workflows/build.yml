@@ -23,7 +23,7 @@ jobs:
       run: ./gradlew build
 
     - name: Upload Plugin Jar
-      uses: actions/upload-artifact@v3.1.3
+      uses: actions/upload-artifact@v2
       with:
         name: TeleChatSRV
         path: build/libs/*.jar
