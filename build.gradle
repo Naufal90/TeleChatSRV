@@ -46,3 +46,9 @@ jar {
     archiveVersion.set("V${version.replace("v", "")}") // Hilangkan huruf 'v' kalau ada
     destinationDirectory.set(file("$buildDir/libs")) // Folder output
 }
+
+processResources {
+    filesMatching('plugin.yml') {
+        expand(version: version.replace("v", ""))
+    }
+}
