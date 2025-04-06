@@ -19,7 +19,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 
-public class TeleChatSRV extends JavaPlugin implements Listener {
+public class TeleSRV extends JavaPlugin implements Listener {
 
     private String bot1Token; // Token bot Telegram 1
     private String bot1ChatId; // ID grup atau chat Telegram bot 1
