@@ -1,41 +1,52 @@
-# ForkTest - A Paper fork, using paperweight
+# TeleChatSRV
 
-This is an example project, showcasing how to setup a fork of Paper (or any other fork using paperweight), using paperweight.
+**TeleChatSRV** adalah plugin Spigot/Bukkit yang menghubungkan server Minecraft Anda dengan **Bot Telegram**, untuk memantau aktivitas pemain secara real-time langsung dari ponsel Anda.
 
-The files of most interest are
-- build.gradle.kts
-- settings.gradle.kts
-- gradle.properties
+Plugin ini cocok untuk admin server yang ingin **mengawasi pemain secara jarak jauh** dan **mendeteksi aktivitas mencurigakan**, seperti penggunaan xray.
 
-When updating upstream, be sure to keep the dependencies noted in `build.gradle.kts` in sync with upstream.
-It's also a good idea to use the same version of the Gradle wrapper as upstream.
+---
 
-## Tasks
+## Fitur Utama
 
-```
-Paperweight tasks
------------------
-applyApiPatches
-applyPatches
-applyServerPatches
-cleanCache - Delete the project setup cache and task outputs.
-createMojmapBundlerJar - Build a runnable bundler jar
-createMojmapPaperclipJar - Build a runnable paperclip jar
-createReobfBundlerJar - Build a runnable bundler jar
-createReobfPaperclipJar - Build a runnable paperclip jar
-generateDevelopmentBundle
-rebuildApiPatches
-rebuildPatches
-rebuildServerPatches
-reobfJar - Re-obfuscate the built jar to obf mappings
-runDev - Spin up a non-relocated Mojang-mapped test server
-runReobf - Spin up a test server from the reobfJar output jar
-runShadow - Spin up a test server from the shadowJar archiveFile
-```
+- **Notifikasi Pemain Masuk/Keluar**
+  - Mendapatkan pemberitahuan setiap kali pemain bergabung atau keluar dari server.
 
-## Branches
+- **Notifikasi Pembunuhan**
+  - Kirim notifikasi ketika pemain membunuh atau terbunuh oleh pemain lain.
 
-Each branch of this project represents an example:
+- **Anti-Xray Deteksi**
+  - Mendeteksi pemain yang mencurigakan saat menghancurkan block berharga (ore).
+  - Daftar block yang akan memicu notifikasi dapat diatur di `config.yml`.
 
- - [`main` is the standard example](https://github.com/PaperMC/paperweight-examples/tree/main)
- - [`submodules` shows how paperweight can be applied on a fork using the more traditional git submodule system](https://github.com/PaperMC/paperweight-examples/tree/submodules)
+- **Integrasi Telegram**
+  - Hanya perlu memasukkan token Bot Telegram Anda untuk mulai menerima notifikasi.
+
+---
+
+## Contoh Notifikasi di Telegram
+
+- `[JOIN] Naufal90 baru saja masuk ke server.`
+- `[KILL] Naufal90 membunuh Steve.`
+- `[XRAY?] Naufal90 menghancurkan DIAMOND_ORE pada koordinat X:120 Y:11 Z:-45.`
+
+---
+
+## Cara Konfigurasi
+
+1. Buat Bot Telegram menggunakan [@BotFather](https://t.me/BotFather).
+2. Dapatkan **token** dan masukkan ke file `config.yml`.
+3. Atur block mana yang perlu dikirim notifikasinya di bagian `block_notify_filter`.
+4. Jalankan server dan nikmati notifikasi langsung ke Telegram!
+
+---
+
+## Contoh Config (config.yml)
+
+```yaml
+bot_token: "ISI_TOKEN_BOT_ANDA"
+chat_id: "ISI_CHAT_ID_ANDA"
+
+block_notify_filter:
+  DIAMOND_ORE: true
+  GOLD_ORE: true
+  IRON_ORE: false
