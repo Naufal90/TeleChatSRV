@@ -4,10 +4,7 @@ on:
   push:
     branches:
       - With_Filter_DeepSeek
-  pull_request:
-    branches: 
-      - With_Filter_DeepSeek
-
+ 
 jobs:
   build:
     runs-on: ubuntu-latest
