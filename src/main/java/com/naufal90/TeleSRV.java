@@ -1,4 +1,4 @@
-package com.example.TELEChatSRV;
+package com.naufal90.TELEChatSRV;
 
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
