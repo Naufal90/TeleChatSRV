@@ -1,6 +1,6 @@
 # TeleChatSRV
 
-**TeleChatSRV** adalah plugin Spigot/Bukkit yang menghubungkan server Minecraft Anda dengan **Bot Telegram**, untuk memantau aktivitas pemain secara real-time langsung dari ponsel Anda.
+**TeleChatSRV** adalah plugin Spigot/Bukkit/paper yang menghubungkan server Minecraft Anda dengan **Bot Telegram**, untuk memantau aktivitas pemain secara real-time langsung dari ponsel Anda.
 
 Plugin ini cocok untuk admin server yang ingin **mengawasi pemain secara jarak jauh** dan **mendeteksi aktivitas mencurigakan**, seperti penggunaan xray.
 
