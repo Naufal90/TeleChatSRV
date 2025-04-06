@@ -9,3 +9,27 @@ bot2:
 server:
   ip: play.minechoseland.my.id
   port: 19132
+  
+block_notify_filter:
+  ANCIENT_DEBRIS: true
+  COAL_ORE: true
+  COPPER_ORE: true
+  DEEPSLATE_COAL_ORE: true
+  DEEPSLATE_COPPER_ORE: true
+  DEEPSLATE_DIAMOND_ORE: true
+  DEEPSLATE_EMERALD_ORE: true
+  DEEPSLATE_GOLD_ORE: true
+  DEEPSLATE_IRON_ORE: true
+  DEEPSLATE_LAPIS_ORE: true
+  DEEPSLATE_REDSTONE_ORE: true
+  DIAMOND_ORE: true
+  EMERALD_ORE: true
+  GOLD_ORE: true
+  IRON_ORE: true
+  LAPIS_ORE: true
+  NETHER_GOLD_ORE: true
+  NETHER_QUARTZ_ORE: true
+  RAW_COPPER: true
+  RAW_GOLD: true
+  RAW_IRON: true
+  REDSTONE_ORE: true
