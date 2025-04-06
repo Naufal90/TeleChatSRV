@@ -22,7 +22,7 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew build
 
-    - name: Create GitHub Release
+    - name: Create GitHub Release and Upload Jar
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.ref_name }}
@@ -31,12 +31,6 @@ jobs:
           ## Changelog
           - Rilis otomatis dari branch/tag `${{ github.ref_name }}`
           - Plugin: TeleChatSRV
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload Plugin Jar to Release
-      uses: softprops/action-gh-release@v1
-      with:
         files: build/libs/*.jar
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
