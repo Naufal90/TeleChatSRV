@@ -22,7 +22,7 @@ import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MyPlugin extends JavaPlugin implements Listener {
+public class TeleChatSRV extends JavaPlugin implements Listener {
 
     private String bot1Token;
     private String bot1ChatId;
