@@ -3,7 +3,10 @@ name: Build Plugin
 on:
   push:
     branches:
-      - main
+      - With_Filter_DeepSeek
+  pull_request:
+    branches: 
+      - With_Filter_DeepSeek
 
 jobs:
   build:
@@ -25,5 +28,5 @@ jobs:
     - name: Upload Plugin Jar
       uses: actions/upload-artifact@v3
       with:
-        name: plugin-jar
+        name: TeleChatSRV
         path: build/libs/*.jar
