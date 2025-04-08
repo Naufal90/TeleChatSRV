@@ -224,8 +224,7 @@ public void onBlockBreak(BlockBreakEvent event) {
 
 // Method untuk escape karakter khusus MarkdownV2
 private String escapeMarkdownV2(String text) {
-    return text
-            .replaceAll("([\\\\_\\*\[\]\(\)~`>#+\\-=|{}.!])", "\\\\$1");
+    return text.replaceAll("([\\\\_\\*\\\\~`>#+\\-=|{}.!])", "\\\\$1");
 }
     
     // Membuat folder plugin dan konfigurasi jika belum ada
