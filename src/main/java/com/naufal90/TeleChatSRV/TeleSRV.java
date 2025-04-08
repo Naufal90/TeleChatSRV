@@ -212,6 +212,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
 // Method untuk escape karakter khusus MarkdownV2
 private String escapeMarkdownV2(String text) {
+    text = text.replace("\\", "\\\\");
     // Daftar karakter yang perlu di-escape dalam MarkdownV2
     final String[] specialChars = {"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"};
     
