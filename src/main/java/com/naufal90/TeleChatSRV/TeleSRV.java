@@ -76,6 +76,8 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
 
                 if (conn.getResponseCode() == 200) {
                     String response = new BufferedReader(
@@ -85,19 +87,21 @@ public class TeleSRV extends JavaPlugin implements Listener {
                     JSONObject json = new JSONObject(response);
                     JSONArray updates = json.getJSONArray("result");
 
+                    long newLastId = lastUpdatedId;
+
                     for (int i = 0; i < updates.length(); i++) {
                         JSONObject update = updates.getJSONObject(i);
-                        lastUpdatedId = update.getLong("update_id");
+                        newLastId = update.getLong("update_id");
 
                         if (update.has("message") && !update.isNull("message")) {
                             JSONObject message = update.getJSONObject("message");
-                            
-                            // Pastikan pesan mengandung text dan dari chat yang benar
+
                             if (message.has("text") && 
                                 String.valueOf(message.getJSONObject("chat").getLong("id")).equals(controlBotChatId)) {
-                                
+
                                 String text = message.getString("text").trim();
                                 if (text.equals("/status")) {
+                                    getLogger().info("Perintah /status diterima dari Telegram, mengeksekusi...");
                                     Bukkit.getScheduler().runTask(TeleSRV.this, () -> {
                                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "status");
                                     });
@@ -105,12 +109,14 @@ public class TeleSRV extends JavaPlugin implements Listener {
                             }
                         }
                     }
+
+                    lastUpdatedId = newLastId;
                 }
             } catch (Exception e) {
                 getLogger().warning("Error checking Telegram updates: " + e.toString());
             }
         }
-    }.runTaskTimerAsynchronously(this, 0L, 100L);
+    }.runTaskTimerAsynchronously(this, 0L, 100L); // setiap 5 detik
 }
     
     // Event handler untuk chat player
