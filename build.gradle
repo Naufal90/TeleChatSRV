@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // Tambahkan plugin ShadowJar
 }
 
 repositories {
@@ -11,45 +12,61 @@ repositories {
 
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT'
-    implementation 'org.json:json:20231013'
+    implementation 'org.json:json:20231013' // Library JSON yang diperlukan
 }
 
 sourceSets {
     main {
         resources {
-            srcDir 'src/main/resources' // Lokasi folder resources
+            srcDir 'src/main/resources'
         }
     }
 }
 
 tasks.processResources {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE // Mencegah konflik file plugin.yml
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 tasks.compileJava {
-    options.encoding = 'UTF-8' // Menentukan encoding agar tidak ada masalah karakter
+    options.encoding = 'UTF-8'
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17) // Gunakan Java 17
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
-// Ambil versi dari environment variable atau fallback ke DEV
 def buildVersion = System.getenv("PLUGIN_VERSION") ?: "DEV"
-
-// Set versi project dan konfigurasi output JAR
 version = buildVersion
 
-jar {
+// Konfigurasi ShadowJar untuk membundle dependencies
+shadowJar {
     archiveBaseName.set("TeleChatSRV")
-    archiveVersion.set("V${version.replace("v", "")}") // Hilangkan huruf 'v' kalau ada
-    destinationDirectory.set(file("$buildDir/libs")) // Folder output
+    archiveVersion.set("V${version.replace("v", "")}")
+    destinationDirectory.set(file("$buildDir/libs"))
+    
+    // Relokasi package org.json untuk menghindari konflik
+    relocate 'org.json', 'com.naufal90.telechat.json'
+    
+    // Exclude file yang tidak diperlukan
+    minimize()
 }
 
+// Konfigurasi untuk plugin.yml
 processResources {
     filesMatching('plugin.yml') {
         expand(version: version.replace("v", ""))
     }
+}
+
+// Atur task build agar menggunakan shadowJar
+jar.enabled = false // Nonaktifkan task jar biasa
+build.dependsOn shadowJar // Gunakan shadowJar sebagai gantinya
+
+// Task untuk membersihkan dan rebuild
+task cleanBuild {
+    dependsOn clean
+    dependsOn shadowJar
+    tasks.findByName('shadowJar').mustRunAfter 'clean'
 }
