@@ -1,11 +1,11 @@
-bot1:
+notifyBot:
   token: "YOUR_BOT_1_TOKEN"
   chat_id: "YOUR_BOT_1_CHAT_ID"
 
-bot2:
+controlBot:
   token: "YOUR_BOT_2_TOKEN"
   chat_id: "YOUR_BOT_2_CHAT_ID"
 
 server:
-  ip: play.naufal90.my.id
+  ip: play.minechoseland.my.id
   port: 19132

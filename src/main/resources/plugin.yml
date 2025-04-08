@@ -1,17 +1,25 @@
 name: TeleChatSRV
 version: ${version}
-main: com.naufal.TeleChatSRV.TeleSRV
+main: com.naufal90.TeleChatSRV.TeleSRV
 author: Naufal90
 description: Plugin untuk mengirimkan notifikasi server Minecraft ke Telegram.
 api-version: 1.19
 commands:
   settg:
-    description: Mengatur token dan chat ID bot Telegram.
-    usage: /settg <token> <chat_id>
+    description: Mengatur token dan chat ID kedua bot Telegram.
+    usage: /settg <notifyBot_token> <notifyBot_chat_id> <controlBot_token> <controlBot_chat_id>
+    permission: telechat.admin
+  setserver:
+    description: Mengatur IP dan port server.
+    usage: /setserver <ip> <port>
     permission: telechat.admin
   reloadtg:
     description: Reload konfigurasi Telegram dari file config.yml.
     usage: /reloadtg
+    permission: telechat.admin
+  status:
+    description: Kirim status server ke Telegram.
+    usage: /status
     permission: telechat.admin
 permissions:
   telechat.admin:
