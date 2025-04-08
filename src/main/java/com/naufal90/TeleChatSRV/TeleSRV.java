@@ -27,6 +27,7 @@ import java.net.URLEncoder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 import org.json.JSONArray;
 
