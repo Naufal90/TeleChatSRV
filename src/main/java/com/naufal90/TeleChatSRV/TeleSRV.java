@@ -114,50 +114,57 @@ public class TeleSRV extends JavaPlugin implements Listener {
 }
     
     // Event handler untuk chat player
-    @EventHandler
-    public void onPlayerChat(AsyncPlayerChatEvent event) {
-        String player = event.getPlayer().getName();
-        String message = event.getMessage();
-        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Chat]*\n*%s*: %s", player, message));
-    }
+@EventHandler
+public void onPlayerChat(AsyncPlayerChatEvent event) {
+    String player = event.getPlayer().getName();
+    String message = event.getMessage();
+    String raw = String.format("*[Chat]*\n*%s*: %s", player, message);
+    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+}
 
-    // Event handler ketika player bergabung
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        String player = event.getPlayer().getName();
-        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Join]*\n*%s* telah bergabung ke server!", player));
-    }
+// Event handler ketika player bergabung
+@EventHandler
+public void onPlayerJoin(PlayerJoinEvent event) {
+    String player = event.getPlayer().getName();
+    String raw = String.format("*[Join]*\n*%s* telah bergabung ke server!", player);
+    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+}
 
-    // Event handler ketika player keluar
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        String player = event.getPlayer().getName();
-        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Leave]*\n*%s* telah keluar dari server.", player));
-    }
+// Event handler ketika player keluar
+@EventHandler
+public void onPlayerQuit(PlayerQuitEvent event) {
+    String player = event.getPlayer().getName();
+    String raw = String.format("*[Leave]*\n*%s* telah keluar dari server.", player);
+    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+}
 
-    // Event handler ketika player mati
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        String reason = event.getDeathMessage();
-        String coordinates = String.format("X: %d, Y: %d, Z: %d",
-                player.getLocation().getBlockX(),
-                player.getLocation().getBlockY(),
-                player.getLocation().getBlockZ());
-        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s", player.getName(), reason, coordinates));
-    }
+// Event handler ketika player mati
+@EventHandler
+public void onPlayerDeath(PlayerDeathEvent event) {
+    Player player = event.getEntity();
+    String reason = event.getDeathMessage();
+    String coordinates = String.format("X: %d, Y: %d, Z: %d",
+        player.getLocation().getBlockX(),
+        player.getLocation().getBlockY(),
+        player.getLocation().getBlockZ());
+    String raw = String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s",
+        player.getName(), reason, coordinates);
+    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+}
 
-    // Event handler untuk block break (mining)
-    @EventHandler
-    public void onBlockBreak(BlockBreakEvent event) {
-        Player player = event.getPlayer();
-        String blockType = event.getBlock().getType().toString();
-        String coordinates = String.format("X: %d, Y: %d, Z: %d",
-                event.getBlock().getLocation().getBlockX(),
-                event.getBlock().getLocation().getBlockY(),
-                event.getBlock().getLocation().getBlockZ());
-        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s", player.getName(), blockType, coordinates));
-    }
+// Event handler untuk block break (mining)
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    Player player = event.getPlayer();
+    String blockType = event.getBlock().getType().toString();
+    String coordinates = String.format("X: %d, Y: %d, Z: %d",
+        event.getBlock().getLocation().getBlockX(),
+        event.getBlock().getLocation().getBlockY(),
+        event.getBlock().getLocation().getBlockZ());
+    String raw = String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s",
+        player.getName(), blockType, coordinates);
+    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+}
 
     // Fungsi untuk mengirim pesan ke Telegram
     private void sendToTelegram(String botToken, String chatId, String message) {
@@ -311,54 +318,55 @@ private String escapeMarkdownV2(String text) {
         }
 
         if (command.getName().equalsIgnoreCase("status")) {
-            int onlinePlayers = Bukkit.getOnlinePlayers().size();
-            int maxPlayers = Bukkit.getMaxPlayers();
-            StringBuilder playerList = new StringBuilder();
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                playerList.append("- ").append(p.getName()).append("\n");
-            }
+    int onlinePlayers = Bukkit.getOnlinePlayers().size();
+    int maxPlayers = Bukkit.getMaxPlayers();
 
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    long pingTotal = 0;
-                    int counted = 0;
-                    for (Player p : Bukkit.getOnlinePlayers()) {
-                        try {
-                            Integer ping = p.getPing();
-                            if (ping != null) {
-                                pingTotal += ping;
-                                counted++;
-                            }
-                        } catch (Exception e) {
-                            // Abaikan
-                        }
-                    }
+    // Builder & data final agar bisa dipakai dalam runnable
+    StringBuilder playerList = new StringBuilder();
+    long totalPing = 0;
+    int counted = 0;
 
-                    long averagePing = (counted > 0) ? pingTotal / counted : 0;
+    for (Player p : Bukkit.getOnlinePlayers()) {
+        try {
+            int ping = p.getPing();
+            totalPing += ping;
+            counted++;
+            playerList.append("- ")
+                    .append(escapeMarkdownV2(p.getName()))
+                    .append(" (")
+                    .append(ping)
+                    .append("ms)\n");
+        } catch (Exception ignored) {}
+    }
 
-                    String message = String.format(
-                        "*[Status Server]*\n" +
-                        "*Online:* %d/%d\n" +
-                        "*Pemain:*\n%s" +
-                        "*IP:* %s\n" +
-                        "*Port:* %d\n" +
-                        "*Ping Rata-rata:* %dms",
-                        onlinePlayers, maxPlayers,
-                        playerList.length() > 0 ? playerList.toString() : "- Tidak ada pemain online\n",
-                        serverIP,
-                        serverPort,
-                        averagePing
-                    );
+    // Buat data final supaya bisa dipakai di dalam run()
+    final String playersText = playerList.length() > 0 ? playerList.toString() : "- Tidak ada pemain online\n";
+    final long averagePing = counted > 0 ? totalPing / counted : 0;
 
-                    sendToTelegram(controlBotToken, controlBotChatId, message);
-                }
-            }.runTaskAsynchronously(this);
+    new BukkitRunnable() {
+        @Override
+        public void run() {
+            String message = String.format(
+                "*[Status Server]*\n" +
+                "*Online:* %d/%d\n" +
+                "*Pemain:*\n%s" +
+                "*IP:* %s\n" +
+                "*Port:* %d\n" +
+                "*Ping Rata-rata:* %dms",
+                onlinePlayers, maxPlayers,
+                playersText,
+                serverIP,
+                serverPort,
+                averagePing
+            );
 
-            sender.sendMessage("§aStatus server telah dikirim ke Telegram.");
-            return true;
+            sendToTelegram(controlBotToken, controlBotChatId, escapeMarkdownV2(message));
         }
+    }.runTaskAsynchronously(this);
 
+    sender.sendMessage("§aStatus server telah dikirim ke Telegram.");
+    return true;
+}
         return false;
     }
 }
