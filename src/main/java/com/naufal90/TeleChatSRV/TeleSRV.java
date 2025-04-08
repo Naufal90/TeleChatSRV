@@ -167,16 +167,13 @@ public class TeleSRV extends JavaPlugin implements Listener {
     }
 
     try {
-        // Validasi dan bersihkan pesan
         if (message == null || message.trim().isEmpty()) {
             getLogger().warning("Pesan kosong tidak dikirim");
             return;
         }
 
-        String cleanedMsg = message
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n");
+        // Escape karakter khusus MarkdownV2
+        String cleanedMsg = escapeMarkdownV2(message);
 
         String payload = String.format(
             "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
@@ -196,7 +193,6 @@ public class TeleSRV extends JavaPlugin implements Listener {
             os.write(payload.getBytes(StandardCharsets.UTF_8));
         }
 
-        // Debug response
         String response;
         try (BufferedReader br = new BufferedReader(
             new InputStreamReader(
@@ -212,7 +208,18 @@ public class TeleSRV extends JavaPlugin implements Listener {
     } catch (Exception e) {
         getLogger().severe("Failed to send Telegram message: " + e.toString());
     }
+}
+
+// Method untuk escape karakter khusus MarkdownV2
+private String escapeMarkdownV2(String text) {
+    // Daftar karakter yang perlu di-escape dalam MarkdownV2
+    final String[] specialChars = {"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"};
+    
+    for (String ch : specialChars) {
+        text = text.replace(ch, "\\" + ch);
     }
+    return text;
+}
 
     // Membuat folder plugin dan konfigurasi jika belum ada
     private void createPluginFolderAndConfig() {
