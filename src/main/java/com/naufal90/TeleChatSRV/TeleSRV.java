@@ -71,7 +71,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 String url = String.format(
                     "https://api.telegram.org/bot%s/getUpdates?offset=%d&allowed_updates=message", 
                     controlBotToken, 
-                    lastUpdateId + 1
+                    lastUpdatedId + 1
                 );
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
@@ -87,7 +87,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
                     for (int i = 0; i < updates.length(); i++) {
                         JSONObject update = updates.getJSONObject(i);
-                        lastUpdateId = update.getLong("update_id");
+                        lastUpdatedId = update.getLong("update_id");
 
                         if (update.has("message") && !update.isNull("message")) {
                             JSONObject message = update.getJSONObject("message");
