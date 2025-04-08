@@ -12,6 +12,12 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.OutputStream;
@@ -21,10 +27,10 @@ import java.net.URLEncoder;
 
 public class TeleSRV extends JavaPlugin implements Listener {
 
-    private String bot1Token; // Token bot Telegram 1
-    private String bot1ChatId; // ID grup atau chat Telegram bot 1
-    private String bot2Token; // Token bot Telegram 2
-    private String bot2ChatId; // ID grup atau chat Telegram bot 2
+    private String notifyBotToken; // Token bot Telegram 1
+    private String notifyBotChatId; // ID grup atau chat Telegram bot 1
+    private String controlBotToken; // Token bot Telegram 2
+    private String controlBotChatId; // ID grup atau chat Telegram bot 2
     private String serverIP;
     private int serverPort;
 
@@ -36,10 +42,10 @@ public class TeleSRV extends JavaPlugin implements Listener {
         loadServerConfig();
 
         // Memuat konfigurasi untuk kedua bot
-        bot1Token = getConfig().getString("bot1.token", "");
-        bot1ChatId = getConfig().getString("bot1.chat_id", "");
-        bot2Token = getConfig().getString("bot2.token", "");
-        bot2ChatId = getConfig().getString("bot2.chat_id", "");
+        notifyBotToken = getConfig().getString("notifyBot.token", "");
+        notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
+        controlBotToken = getConfig().getString("controlBot.token", "");
+        controlBotChatId = getConfig().getString("controlBot.chat_id", "");
 
         Bukkit.getPluginManager().registerEvents(this, this);  // Daftarkan listener
     }
@@ -54,21 +60,21 @@ public class TeleSRV extends JavaPlugin implements Listener {
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         String player = event.getPlayer().getName();
         String message = event.getMessage();
-        sendToTelegram(bot1Token, bot1ChatId, String.format("*[Chat]*\n*%s*: %s", player, message));
+        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Chat]*\n*%s*: %s", player, message));
     }
 
     // Event handler ketika player bergabung
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         String player = event.getPlayer().getName();
-        sendToTelegram(bot1Token, bot1ChatId, String.format("*[Join]*\n*%s* telah bergabung ke server!", player));
+        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Join]*\n*%s* telah bergabung ke server!", player));
     }
 
     // Event handler ketika player keluar
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         String player = event.getPlayer().getName();
-        sendToTelegram(bot1Token, bot1ChatId, String.format("*[Leave]*\n*%s* telah keluar dari server.", player));
+        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Leave]*\n*%s* telah keluar dari server.", player));
     }
 
     // Event handler ketika player mati
@@ -80,7 +86,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 player.getLocation().getBlockX(),
                 player.getLocation().getBlockY(),
                 player.getLocation().getBlockZ());
-        sendToTelegram(bot1Token, bot1ChatId, String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s", player.getName(), reason, coordinates));
+        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s", player.getName(), reason, coordinates));
     }
 
     // Event handler untuk block break (mining)
@@ -92,7 +98,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 event.getBlock().getLocation().getBlockX(),
                 event.getBlock().getLocation().getBlockY(),
                 event.getBlock().getLocation().getBlockZ());
-        sendToTelegram(bot1Token, bot1ChatId, String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s", player.getName(), blockType, coordinates));
+        sendToTelegram(notifyBotToken, notifyBotChatId, String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s", player.getName(), blockType, coordinates));
     }
 
     // Fungsi untuk mengirim pesan ke Telegram
@@ -148,62 +154,106 @@ public class TeleSRV extends JavaPlugin implements Listener {
         serverPort = getConfig().getInt("server.port", 19132);
     }
 
-    // Perintah untuk mengatur token dan chat ID untuk bot1 dan bot2
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (command.getName().equalsIgnoreCase("settg")) {
-            if (args.length == 4) {
-                bot1Token = args[0];
-                bot1ChatId = args[1];
-                bot2Token = args[2];
-                bot2ChatId = args[3];
+    // Perintah untuk mengatur token dan chat ID untuk bot1 dan bot2@Override
+public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    if (command.getName().equalsIgnoreCase("settg")) {
+        if (args.length == 4) {
+            notifyBotToken = args[0];
+            notifyBotChatId = args[1];
+            controlBotToken = args[2];
+            controlBotChatId = args[3];
 
-                getConfig().set("bot1.token", bot1Token);
-                getConfig().set("bot1.chat_id", bot1ChatId);
-                getConfig().set("bot2.token", bot2Token);
-                getConfig().set("bot2.chat_id", bot2ChatId);
-                saveConfig();
+            getConfig().set("notifyBot.token", notifyBotToken);
+            getConfig().set("notifyBotToken.chat_id", notifyBotChatId);
+            getConfig().set("controlBot.token", controlBotToken);
+            getConfig().set("controlBot.chat_id", controlBotChatId);
+            saveConfig();
 
-                sender.sendMessage("Token dan ID grup Telegram untuk kedua bot berhasil diperbarui!");
-                return true;
-            } else {
-                sender.sendMessage("Penggunaan: /settg <bot1_token> <bot1_chat_id> <bot2_token> <bot2_chat_id>");
-                return false;
-            }
-        }
-
-        if (command.getName().equalsIgnoreCase("setserver")) {
-            if (args.length == 2) {
-                String newIP = args[0];
-                int newPort = Integer.parseInt(args[1]);
-
-                // Mengupdate config.yml
-                getConfig().set("server.ip", newIP);
-                getConfig().set("server.port", newPort);
-                saveConfig();
-
-                // Memperbarui variabel di plugin
-                serverIP = newIP;
-                serverPort = newPort;
-
-                sender.sendMessage("Server IP dan Port berhasil diperbarui!");
-                return true;
-            } else {
-                sender.sendMessage("Penggunaan: /setserver <ip> <port>");
-                return false;
-            }
-        }
-
-        if (command.getName().equalsIgnoreCase("reloadtg")) {
-            reloadConfig();
-            bot1Token = getConfig().getString("bot1.token", "");
-            bot1ChatId = getConfig().getString("bot1.chat_id", "");
-            bot2Token = getConfig().getString("bot2.token", "");
-            bot2ChatId = getConfig().getString("bot2.chat_id", "");
-            sender.sendMessage("Konfigurasi Telegram telah di-reload!");
+            sender.sendMessage("Token dan ID grup Telegram untuk kedua bot berhasil diperbarui!");
             return true;
+        } else {
+            sender.sendMessage("Penggunaan: /settg <notifyBot_token> <notifyBot_chat_id> <controlBot_token> <controlBot_chat_id>");
+            return false;
+        }
+    }
+
+    if (command.getName().equalsIgnoreCase("setserver")) {
+        if (args.length == 2) {
+            String newIP = args[0];
+            int newPort = Integer.parseInt(args[1]);
+
+            getConfig().set("server.ip", newIP);
+            getConfig().set("server.port", newPort);
+            saveConfig();
+
+            serverIP = newIP;
+            serverPort = newPort;
+
+            sender.sendMessage("Server IP dan Port berhasil diperbarui!");
+            return true;
+        } else {
+            sender.sendMessage("Penggunaan: /setserver <ip> <port>");
+            return false;
+        }
+    }
+
+    if (command.getName().equalsIgnoreCase("reloadtg")) {
+        reloadConfig();
+        notifyBotToken = getConfig().getString("notifyBot.token", "");
+        notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
+        controlBotToken = getConfig().getString("controlBot.token", "");
+        controlBotChatId = getConfig().getString("controlBot.chat_id", "");
+        sender.sendMessage("Konfigurasi Telegram telah di-reload!");
+        return true;
+    }
+
+    if (command.getName().equalsIgnoreCase("status")) {
+        int onlinePlayers = Bukkit.getOnlinePlayers().size();
+        int maxPlayers = Bukkit.getMaxPlayers();
+        StringBuilder playerList = new StringBuilder();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            playerList.append("- ").append(p.getName()).append("\n");
         }
 
-        return false;
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                long pingTotal = 0;
+                int counted = 0;
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    try {
+                        int ping = p.spigot().getPing(); // untuk Spigot
+                        pingTotal += ping;
+                        counted++;
+                    } catch (Exception e) {
+                        // Abaikan
+                    }
+                }
+
+                long averagePing = (counted > 0) ? pingTotal / counted : 0;
+
+                String message = String.format(
+                    "*[Status Server]*\n" +
+                    "*Online:* %d/%d\n" +
+                    "*Pemain:*\n%s" +
+                    "*IP:* %s\n" +
+                    "*Port:* %d\n" +
+                    "*Ping Rata-rata:* %dms",
+                    onlinePlayers, maxPlayers,
+                    playerList.length() > 0 ? playerList.toString() : "- Tidak ada pemain online\n",
+                    serverIP,
+                    serverPort,
+                    averagePing
+                );
+
+                sendToTelegram(controlBotToken, controlBotChatId, message);
+            }
+        }.runTaskAsynchronously(this);
+
+        sender.sendMessage("Status server telah dikirim ke Telegram.");
+        return true;
     }
-    }
+
+    return false;
+}
+    
