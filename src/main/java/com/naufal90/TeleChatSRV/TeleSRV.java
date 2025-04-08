@@ -63,37 +63,40 @@ public class TeleSRV extends JavaPlugin implements Listener {
     }
 
     private void startTelegramCommandListener() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                try {
-                    String url = String.format(
-                        "https://api.telegram.org/bot%s/getUpdates?offset=%d", 
-                        controlBotToken, lastUpdatedId + 1
-                    );
-                    
-                    HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                    conn.setRequestMethod("GET");
-                    
-                    if (conn.getResponseCode() == 200) {
-                        String response = new BufferedReader(
-                            new InputStreamReader(conn.getInputStream()))
-                            .lines().collect(Collectors.joining("\n"));
-                        
-                        JSONObject json = new JSONObject(response);
-                        
-                        for (Object obj : json.getJSONArray("result")) {
-                            JSONObject update = (JSONObject) obj;
-                            lastUpdatedId = update.getLong("update_id");
+    new BukkitRunnable() {
+        @Override
+        public void run() {
+            try {
+                String url = String.format(
+                    "https://api.telegram.org/bot%s/getUpdates?offset=%d&allowed_updates=message", 
+                    controlBotToken, 
+                    lastUpdateId + 1
+                );
+
+                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    String response = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()))
+                        .lines().collect(Collectors.joining("\n"));
+
+                    JSONObject json = new JSONObject(response);
+                    JSONArray updates = json.getJSONArray("result");
+
+                    for (int i = 0; i < updates.length(); i++) {
+                        JSONObject update = updates.getJSONObject(i);
+                        lastUpdateId = update.getLong("update_id");
+
+                        if (update.has("message") && !update.isNull("message")) {
+                            JSONObject message = update.getJSONObject("message");
                             
-                            if (update.has("message")) {
-                                JSONObject msg = update.getJSONObject("message");
-                                String text = msg.getString("text");
-                                long chatId = msg.getJSONObject("chat").getLong("id");
+                            // Pastikan pesan mengandung text dan dari chat yang benar
+                            if (message.has("text") && 
+                                String.valueOf(message.getJSONObject("chat").getLong("id")).equals(controlBotChatId)) {
                                 
-                                if (text.equals("/status") && 
-                                    String.valueOf(chatId).equals(controlBotChatId)) {
-                                    // Panggil command status
+                                String text = message.getString("text").trim();
+                                if (text.equals("/status")) {
                                     Bukkit.getScheduler().runTask(TeleSRV.this, () -> {
                                         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "status");
                                     });
@@ -101,13 +104,14 @@ public class TeleSRV extends JavaPlugin implements Listener {
                             }
                         }
                     }
-                } catch (Exception e) {
-                    getLogger().warning("Error checking Telegram commands: " + e.getMessage());
                 }
+            } catch (Exception e) {
+                getLogger().warning("Error checking Telegram updates: " + e.toString());
             }
-        }.runTaskTimerAsynchronously(this, 0L, 100L); // Check every 5 seconds
-    }
-
+        }
+    }.runTaskTimerAsynchronously(this, 0L, 100L);
+}
+    
     // Event handler untuk chat player
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -156,38 +160,57 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
     // Fungsi untuk mengirim pesan ke Telegram
     private void sendToTelegram(String botToken, String chatId, String message) {
-        if (botToken.isEmpty() || chatId.isEmpty()) {
-            getLogger().severe("Token atau ID grup Telegram belum dikonfigurasi!");
+    if (botToken.isEmpty() || chatId.isEmpty()) {
+        getLogger().warning("Token atau Chat ID tidak valid!");
+        return;
+    }
+
+    try {
+        // Validasi dan bersihkan pesan
+        if (message == null || message.trim().isEmpty()) {
+            getLogger().warning("Pesan kosong tidak dikirim");
             return;
         }
 
-        try {
-            String apiUrl = String.format("https://api.telegram.org/bot%s/sendMessage", botToken);
-            String payload = String.format("chat_id=%s&text=%s&parse_mode=Markdown",
-                    URLEncoder.encode(chatId, "UTF-8"),
-                    URLEncoder.encode(message, "UTF-8"));
+        String cleanedMsg = message
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n");
 
-            // Kirim permintaan POST ke API Telegram
-            HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();
-            connection.setRequestMethod("POST");
-            connection.setDoOutput(true);
+        String payload = String.format(
+            "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
+            chatId,
+            cleanedMsg
+        );
 
-            // Kirim payload
-            try (OutputStream os = connection.getOutputStream()) {
-                os.write(payload.getBytes());
-                os.flush();
-            }
+        HttpURLConnection conn = (HttpURLConnection) new URL(
+            "https://api.telegram.org/bot" + botToken + "/sendMessage"
+        ).openConnection();
+        
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
 
-            // Cek respons
-            int responseCode = connection.getResponseCode();
-            if (responseCode == 200) {
-                getLogger().info("Pesan terkirim ke Telegram: " + message);
-            } else {
-                getLogger().severe("Gagal mengirim pesan ke Telegram. Kode respons: " + responseCode);
-            }
-        } catch (Exception e) {
-            getLogger().severe("Error saat mengirim pesan ke Telegram: " + e.getMessage());
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(payload.getBytes(StandardCharsets.UTF_8));
         }
+
+        // Debug response
+        String response;
+        try (BufferedReader br = new BufferedReader(
+            new InputStreamReader(
+                conn.getResponseCode() == 200 ? conn.getInputStream() : conn.getErrorStream()
+            )
+        )) {
+            response = br.lines().collect(Collectors.joining());
+        }
+
+        if (conn.getResponseCode() != 200) {
+            getLogger().severe("Error Telegram API: " + response);
+        }
+    } catch (Exception e) {
+        getLogger().severe("Failed to send Telegram message: " + e.toString());
+    }
     }
 
     // Membuat folder plugin dan konfigurasi jika belum ada
