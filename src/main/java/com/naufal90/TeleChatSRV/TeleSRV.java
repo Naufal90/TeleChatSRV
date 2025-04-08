@@ -173,8 +173,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
         }
 
         // Escape karakter khusus MarkdownV2
-        String cleanedMsg = escapeMarkdownV2(message);
-
+        String cleanedMsg = escapeMarkdownV2(message).replace("\n", "\\n");
         String payload = String.format(
             "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
             chatId,
