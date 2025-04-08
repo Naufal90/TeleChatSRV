@@ -1,6 +1,6 @@
 plugins {
     id 'java' //cukup classpath
-    //id 'com.github.johnrengelman.shadow' version '8.1.1' // Tambahkan plugin ShadowJar untuk tambahan Dependencies
+    id 'com.github.johnrengelman.shadow' version '8.1.1' // Tambahkan plugin ShadowJar untuk tambahan Dependencies
 }
 
 repositories {
@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     compileOnly 'io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT'
-    //implementation 'org.json:json:20231013' // Library JSON yang diperlukan
+    implementation 'org.json:json:20231013' // Library JSON yang diperlukan
 }
 
 sourceSets {
@@ -41,17 +41,17 @@ def buildVersion = System.getenv("PLUGIN_VERSION") ?: "DEV"
 version = buildVersion
 
 // Konfigurasi ShadowJar untuk membundle dependencies
-//shadowJar {
-    //archiveBaseName.set("TeleChatSRV")
-  //  archiveVersion.set("V${version.replace("v", "")}")
-  //  destinationDirectory.set(file("$buildDir/libs"))
+shadowJar {
+    archiveBaseName.set("TeleChatSRV")
+    archiveVersion.set("V${version.replace("v", "")}")
+    destinationDirectory.set(file("$buildDir/libs"))
     
     // Relokasi package org.json untuk menghindari konflik
-    //relocate 'org.json', 'com.naufal90.telechat.json'
+    relocate 'org.json', 'com.naufal90.telechat.json'
     
     // Exclude file yang tidak diperlukan
-    //minimize()
-//}
+    minimize()
+}
 
 // Konfigurasi untuk plugin.yml
 processResources {
@@ -61,12 +61,12 @@ processResources {
 }
 
 // Atur task build agar menggunakan shadowJar
-//jar.enabled = false // Nonaktifkan task jar biasa
-//build.dependsOn shadowJar // Gunakan shadowJar sebagai gantinya
+jar.enabled = false // Nonaktifkan task jar biasa
+build.dependsOn shadowJar // Gunakan shadowJar sebagai gantinya
 
 // Task untuk membersihkan dan rebuild
-//task cleanBuild {
-   // dependsOn clean
-   // dependsOn shadowJar
-    //tasks.findByName('shadowJar').mustRunAfter 'clean'
-//}
+task cleanBuild {
+    dependsOn clean
+    dependsOn shadowJar
+    tasks.findByName('shadowJar').mustRunAfter 'clean'
+}
