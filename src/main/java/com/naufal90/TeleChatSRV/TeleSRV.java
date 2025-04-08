@@ -173,7 +173,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
         }
 
         // Escape karakter khusus MarkdownV2
-        String cleanedMsg = escapeMarkdownV2(message).replace("\n", "\\n");
+        String cleanedMsg = escapeMarkdownV2(message);
         String payload = String.format(
             "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
             chatId,
@@ -211,16 +211,10 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
 // Method untuk escape karakter khusus MarkdownV2
 private String escapeMarkdownV2(String text) {
-    text = text.replace("\\", "\\\\");
-    // Daftar karakter yang perlu di-escape dalam MarkdownV2
-    final String[] specialChars = {"_", "*", "[", "]", "(", ")", "~", "`", ">", "#", "+", "-", "=", "|", "{", "}", ".", "!"};
-    
-    for (String ch : specialChars) {
-        text = text.replace(ch, "\\" + ch);
-    }
-    return text;
+    return text
+            .replaceAll("([\\\\_\\*\[\]\(\)~`>#+\\-=|{}.!])", "\\\\$1");
 }
-
+    
     // Membuat folder plugin dan konfigurasi jika belum ada
     private void createPluginFolderAndConfig() {
         if (!getDataFolder().exists()) {
