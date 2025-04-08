@@ -256,4 +256,5 @@ public boolean onCommand(CommandSender sender, Command command, String label, St
 
     return false;
 }
+}
     
