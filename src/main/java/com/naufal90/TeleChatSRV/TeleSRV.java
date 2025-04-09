@@ -132,7 +132,7 @@ public void onPlayerChat(AsyncPlayerChatEvent event) {
 @EventHandler
 public void onPlayerJoin(PlayerJoinEvent event) {
     String player = event.getPlayer().getName();
-    String raw = String.format("*[Join]*\n*%s* telah bergabung ke server!", player);
+    String raw = String.format("**[Join]**\n**%s** telah bergabung ke server!", player);
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -140,7 +140,7 @@ public void onPlayerJoin(PlayerJoinEvent event) {
 @EventHandler
 public void onPlayerQuit(PlayerQuitEvent event) {
     String player = event.getPlayer().getName();
-    String raw = String.format("*[Leave]*\n*%s* telah keluar dari server.", player);
+    String raw = String.format("**[Leave]**\n**%s** telah keluar dari server.", player);
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -153,7 +153,7 @@ public void onPlayerDeath(PlayerDeathEvent event) {
         player.getLocation().getBlockX(),
         player.getLocation().getBlockY(),
         player.getLocation().getBlockZ());
-    String raw = String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s",
+    String raw = String.format("**[Death]**\n**%s** mati karena: %s\nKoordinat: %s",
         player.getName(), reason, coordinates);
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
@@ -167,7 +167,7 @@ public void onBlockBreak(BlockBreakEvent event) {
         event.getBlock().getLocation().getBlockX(),
         event.getBlock().getLocation().getBlockY(),
         event.getBlock().getLocation().getBlockZ());
-    String raw = String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s",
+    String raw = String.format("**[Mining]**\n**%s** menambang: %s\nKoordinat: %s",
         player.getName(), blockType, coordinates);
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
@@ -352,12 +352,12 @@ private String escapeMarkdownV2(String text) {
         @Override
         public void run() {
             String message = String.format(
-                "*[Status Server]*\n" +
-                "*Online:* %d/%d\n" +
-                "*Pemain:*\n%s" +
-                "*IP:* %s\n" +
-                "*Port:* %d\n" +
-                "*Ping Rata-rata:* %dms",
+                "**[Status Server]**\n" +
+                "**Online:** %d/%d\n" +
+                "**Pemain:**\n%s" +
+                "**IP:** %s\n" +
+                "**Port:** %d\n" +
+                "**Ping Rata-rata:** %dms",
                 onlinePlayers, maxPlayers,
                 playersText,
                 serverIP,
