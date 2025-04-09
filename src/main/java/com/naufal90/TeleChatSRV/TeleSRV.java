@@ -337,7 +337,7 @@ private String escapeMarkdownV2(String text) {
             totalPing += ping;
             counted++;
             playerList.append("- ")
-                    .append(escapeMarkdownV2(p.getName()))
+                    .append(p.getName())
                     .append(" (")
                     .append(ping)
                     .append("ms)\n");
