@@ -20,7 +20,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.io.File;
-import java.io.OutputStream;
+import java.io.OutputStream; 
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -124,7 +124,12 @@ public class TeleSRV extends JavaPlugin implements Listener {
 public void onPlayerChat(AsyncPlayerChatEvent event) {
     String player = event.getPlayer().getName();
     String message = event.getMessage();
-    String raw = String.format("*[Chat]*\n*%s*: %s", player, message);
+    String raw = String.format(
+        "💬 *[Chat]*\n" +
+        "👤 *%s*: %s", 
+        player, 
+        message
+     );
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -132,7 +137,11 @@ public void onPlayerChat(AsyncPlayerChatEvent event) {
 @EventHandler
 public void onPlayerJoin(PlayerJoinEvent event) {
     String player = event.getPlayer().getName();
-    String raw = String.format("*[Join]*\n*%s* telah bergabung ke server!", player);
+    String raw = String.format(
+        "🎉 *[Join]*\n" +
+        "🟢 *%s* telah bergabung ke server!", 
+        player
+    );
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -140,7 +149,11 @@ public void onPlayerJoin(PlayerJoinEvent event) {
 @EventHandler
 public void onPlayerQuit(PlayerQuitEvent event) {
     String player = event.getPlayer().getName();
-    String raw = String.format("*[Leave]*\n*%s* telah keluar dari server.", player);
+    String raw = String.format(
+        "🚪 *[Leave]*\n" +
+        "🔴 *%s* telah keluar dari server.",
+        player
+    );    
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -153,8 +166,14 @@ public void onPlayerDeath(PlayerDeathEvent event) {
         player.getLocation().getBlockX(),
         player.getLocation().getBlockY(),
         player.getLocation().getBlockZ());
-    String raw = String.format("*[Death]*\n*%s* mati karena: %s\nKoordinat: %s",
-        player.getName(), reason, coordinates);
+    String raw = String.format(
+        "☠️ *[Death]*\n" +
+        "⚫ *%s* mati karena: %s\n" +
+        "📍 Koordinat: `%s`",
+        player.getName(), 
+        reason, 
+        coordinates
+    );
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -167,8 +186,14 @@ public void onBlockBreak(BlockBreakEvent event) {
         event.getBlock().getLocation().getBlockX(),
         event.getBlock().getLocation().getBlockY(),
         event.getBlock().getLocation().getBlockZ());
-    String raw = String.format("*[Mining]*\n*%s* menambang: %s\nKoordinat: %s",
-        player.getName(), blockType, coordinates);
+    String raw = String.format(
+        "⛏️ *[Mining]*\n" +
+        "👷 *%s* menambang: `%s`\n" +
+        "📍 Koordinat: `%s`", 
+        player.getName(), 
+        blockType, 
+        coordinates
+    );
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
 }
 
@@ -352,16 +377,17 @@ private String escapeMarkdownV2(String text) {
         @Override
         public void run() {
             String message = String.format(
-                "*[Status Server]*\n" +
-                "*Online:* %d/%d\n" +
-                "*Pemain:*\n%s" +
-                "*IP:* %s\n" +
-                "*Port:* %d\n" +
-                "*Ping Rata-rata:* %dms",
-                onlinePlayers, maxPlayers,
-                playersText,
-                serverIP,
-                serverPort,
+                "📊 *[Status Server]*\n" +
+                "🟢 *Online:* %d/%d\n" +
+                "👥 *Pemain:*\n%s\n" +
+                "🌐 *IP:* `%s`\n" +
+                "🔌 *Port:* `%d`\n" +
+                "⏱️ *Ping Rata-rata:* `%dms`",
+                onlinePlayers, 
+                maxPlayers, 
+                playersText,  // Daftar pemain (format: "- Name (pingms)\n")
+                serverIP, 
+                serverPort, 
                 averagePing
             );
 
