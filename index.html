@@ -2,112 +2,193 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TeleChatSRV - Telegram Notifier Plugin for Minecraft</title>
+  <title>Naufal90 - Developer Minecraft & Teknologi</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root {
+      --bg-light: #f9f9f9;
+      --bg-dark: #121212;
+      --text-light: #333;
+      --text-dark: #f0f0f0;
+      --primary: #005eff;
+      --nav-bg: #071133;
     }
     body {
+      margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: #f4f6f9;
-      color: #333;
-      line-height: 1.6;
-      padding: 2rem;
+      background: var(--bg-light);
+      color: var(--text-light);
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
     }
     header {
+      background: #0a0f3c;
+      color: white;
+      padding: 3rem 2rem;
       text-align: center;
-      margin-bottom: 2rem;
     }
-    header img {
-      width: 150px;
-      border-radius: 16px;
-    }
-    h1 {
+    header h1 {
       font-size: 2.5rem;
-      color: #005eff;
-      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    nav {
+      background: var(--nav-bg);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      align-items: center;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    #darkToggle {
+      background: none;
+      border: 2px solid white;
+      color: white;
+      padding: 0.2rem 0.7rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    main {
+      max-width: 1000px;
+      margin: auto;
+      padding: 2rem;
     }
     section {
-      max-width: 900px;
-      margin: auto;
-      background: white;
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-      margin-bottom: 2rem;
+      display: none;
+    }
+    section.active {
+      display: block;
     }
     h2 {
-      color: #005eff;
+      color: #0a0f3c;
+    }
+    body.dark h2 {
+      color: #78aaff;
+    }
+    .project {
+      background: white;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
       margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    ul {
-      padding-left: 1.5rem;
-    }
-    code, pre {
-      background: #eee;
-      padding: 1rem;
-      display: block;
-      border-radius: 8px;
-      font-family: monospace;
-      margin-top: 1rem;
-      overflow-x: auto;
+    body.dark .project {
+      background: #1e1e1e;
     }
     footer {
+      background: #0a0f3c;
+      color: white;
       text-align: center;
-      font-size: 0.9rem;
-      color: #777;
-      margin-top: 3rem;
+      padding: 2rem;
     }
-    a {
-      color: #005eff;
+    a.btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: var(--primary);
+      color: white;
+      border-radius: 8px;
+      margin-top: 0.5rem;
       text-decoration: none;
     }
-    a:hover {
-      text-decoration: underline;
+    a.btn:hover {
+      background: #0041c4;
+    }
+    input, textarea {
+      padding: 0.5rem;
+      width: 100%;
+      max-width: 500px;
+      margin-bottom: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    body.dark input, body.dark textarea {
+      background: #2c2c2c;
+      color: white;
+      border: 1px solid #444;
     }
   </style>
 </head>
 <body>
   <header>
-    <img src="https://raw.githubusercontent.com/Naufal90/TeleChatSRV/c6022d8dfcf5066614631cc1604aadc38d192018/.github/assets/logo.PNG" alt="TeleChatSRV Logo">
-    <h1>TeleChatSRV</h1>
-    <p>Plugin Minecraft x Telegram terbaik untuk monitoring server real-time</p>
-  </header>  <section>
-    <h2>Apa Itu TeleChatSRV?</h2>
-    <p><strong>TeleChatSRV</strong> adalah plugin Spigot/Bukkit/Paper yang menghubungkan server Minecraft Anda dengan Bot Telegram. Cocok untuk admin server yang ingin memantau aktivitas pemain secara jarak jauh, termasuk notifikasi pemain, pembunuhan, dan deteksi penggunaan xray.</p>
-  </section>  <section>
-    <h2>Fitur Utama</h2>
-    <ul>
-      <li><strong>Notifikasi Join/Quit:</strong> Pemain masuk dan keluar dari server.</li>
-      <li><strong>Notifikasi Pembunuhan:</strong> Pesan saat pemain membunuh atau terbunuh.</li>
-      <li><strong>Anti-Xray Deteksi:</strong> Deteksi dan notifikasi saat pemain menghancurkan block berharga.</li>
-      <li><strong>Integrasi Telegram Mudah:</strong> Cukup isi token dan chat ID.</li>
-    </ul>
-  </section>  <section>
-    <h2>Contoh Notifikasi Telegram</h2>
-    <ul>
-      <li>[JOIN] Naufal90 baru saja masuk ke server.</li>
-      <li>[KILL] Naufal90 membunuh Steve.</li>
-      <li>[XRAY?] Naufal90 menghancurkan DIAMOND_ORE di X:120 Y:11 Z:-45.</li>
-    </ul>
-  </section>  <section>
-    <h2>Cara Konfigurasi</h2>
-    <ol>
-      <li>Buat bot Telegram dengan <a href="https://t.me/BotFather" target="_blank">@BotFather</a>.</li>
-      <li>Dapatkan token dan masukkan ke dalam file <code>config.yml</code>.</li>
-      <li>Dapatkan chat ID menggunakan bot <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>.</li>
-      <li>Sesuaikan block yang ingin dipantau melalui <code>block_notify_filter</code>.</li>
-    </ol>
-  </section>  <section>
-    <h2>Contoh config.yml</h2>
-    <pre><code>bot_token: "ISI_TOKEN_BOT_ANDA"
-chat_id: "ISI_CHAT_ID_ANDA"block_notify_filter: DIAMOND_ORE: true GOLD_ORE: true IRON_ORE: false</code></pre>
+    <h1>Naufal90</h1>
+    <p>Developer Plugin Minecraft, Bot Telegram, dan Teknologi Kreatif</p>
+  </header>  <nav>
+    <a onclick="showTab('tentang')">Tentang</a>
+    <a onclick="showTab('project')">Proyek</a>
+    <a onclick="showTab('blog')">Blog</a>
+    <a onclick="showTab('kontak')">Kontak</a>
+    <button id="darkToggle" onclick="toggleDark()">Dark Mode</button>
+  </nav>  <main>
+    <section id="tentang" class="active tab-content">
+      <h2>Tentang Saya</h2>
+      <p>Saya adalah developer independen yang fokus mengembangkan plugin Minecraft, bot Telegram, dan berbagai tools otomatisasi.</p>
+    </section><section id="project" class="tab-content">
+  <h2>Proyek Unggulan</h2>
+  <div class="project">
+    <h3>TeleChatSRV</h3>
+    <p>Plugin notifikasi Minecraft ke Telegram.</p>
+    <a class="btn" href="https://github.com/Naufal90/TeleChatSRV" target="_blank">Lihat di GitHub</a>
+  </div>
+</section>
 
-  </section>  <footer>
-    <p>Developed by <a href="https://github.com/Naufal90">Naufal90</a> • Released under MIT License</p>
-  </footer>
-</body>
+<section id="blog" class="tab-content">
+  <h2>Blog / Update</h2>
+  <div id="blog-posts">
+    <p>Loading...</p>
+  </div>
+</section>
+
+<section id="kontak" class="tab-content">
+  <h2>Kontak Saya</h2>
+  <form onsubmit="sendContact(event)">
+    <input type="text" placeholder="Nama Anda" required><br>
+    <input type="email" placeholder="Email Anda" required><br>
+    <textarea placeholder="Pesan..." rows="5" required></textarea><br>
+    <button type="submit" class="btn">Kirim</button>
+  </form>
+</section>
+
+  </main>  <footer>
+    <p>&copy; 2025 Naufal90. Dibuat dengan semangat dan kode.</p>
+  </footer>  <script>
+    function showTab(id) {
+      document.querySelectorAll('section.tab-content').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function toggleDark() {
+      document.body.classList.toggle('dark');
+    }
+
+    async function sendContact(e) {
+      e.preventDefault();
+      alert("Terima kasih, pesan Anda berhasil dikirim (simulasi).");
+    }
+
+    // CMS Simulasi (ambil dari JSON lokal atau eksternal jika mau)
+    const blogData = [
+      { title: "Rilis TeleChatSRV v1.0", content: "Plugin untuk notifikasi real-time Minecraft ke Telegram." },
+      { title: "Cara Membuat Emote Custom di Minecraft", content: "Langkah-langkah membuat MCPACK emote custom." }
+    ];
+
+    window.onload = () => {
+      const blogEl = document.getElementById('blog-posts');
+      blogEl.innerHTML = '';
+      blogData.forEach(post => {
+        blogEl.innerHTML += `<div class='project'><h3>${post.title}</h3><p>${post.content}</p></div>`;
+      });
+    }
+  </script></body>
 </html>
