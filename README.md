@@ -1,46 +1,68 @@
-# TeleChatSRV
+<p align="center">
+  <img src="https://link-ke-logo-anda.com/logo.png" alt="TeleChatSRV Logo" width="200"/>
+</p>
 
-**TeleChatSRV** adalah plugin Spigot/Bukkit/paper yang menghubungkan server Minecraft Anda dengan **Bot Telegram**, untuk memantau aktivitas pemain secara real-time langsung dari ponsel Anda.
+<h1 align="center">TeleChatSRV</h1>
 
-Plugin ini cocok untuk admin server yang ingin **mengawasi pemain secara jarak jauh** dan **mendeteksi aktivitas mencurigakan**, seperti penggunaan xray.
+<p align="center">
+  Plugin integrasi <strong>Minecraft + Telegram</strong> untuk monitoring real-time aktivitas server.<br/>
+  Awasi pemain, deteksi kecurangan, dan dapatkan notifikasi langsung ke Telegram Anda.
+</p>
+
+<p align="center">
+  <a href="#fitur-utama">Fitur</a> •
+  <a href="#contoh-notifikasi">Notifikasi</a> •
+  <a href="#konfigurasi">Cara Konfigurasi</a> •
+  <a href="#contoh-config">Contoh Config</a>
+</p>
+
+---
+
+## Apa Itu TeleChatSRV?
+
+**TeleChatSRV** adalah plugin untuk Spigot/Bukkit/Paper yang menghubungkan server Minecraft Anda dengan **Bot Telegram** secara langsung. Cocok untuk para admin yang ingin:
+
+- Memantau server **dari mana saja**.
+- Mendeteksi pemain yang mencurigakan (seperti penggunaan Xray).
+- Mendapatkan notifikasi real-time langsung ke Telegram.
 
 ---
 
 ## Fitur Utama
 
-- **Notifikasi Pemain Masuk/Keluar**
-  - Mendapatkan pemberitahuan setiap kali pemain bergabung atau keluar dari server.
+- **Notifikasi Join/Quit**
+  - Pemberitahuan saat pemain masuk dan keluar dari server.
 
-- **Notifikasi Pembunuhan**
-  - Kirim notifikasi ketika pemain membunuh atau terbunuh oleh pemain lain.
+- **Notifikasi Kematian & Pembunuhan**
+  - Kirim pesan ketika ada pemain yang membunuh atau terbunuh.
 
-- **Anti-Xray Deteksi**
-  - Mendeteksi pemain yang mencurigakan saat menghancurkan block berharga (ore).
-  - Daftar block yang akan memicu notifikasi dapat diatur di `config.yml`.
+- **Deteksi Xray Otomatis**
+  - Notifikasi saat pemain menghancurkan block berharga.
+  - Block yang terdeteksi dapat dikustomisasi di `config.yml`.
 
-- **Integrasi Telegram**
-  - Hanya perlu memasukkan token Bot Telegram Anda untuk mulai menerima notifikasi.
+- **Integrasi Telegram yang Mudah**
+  - Cukup masukkan token bot dan chat ID Anda.
 
 ---
 
-## Contoh Notifikasi di Telegram
+## Contoh Notifikasi
 
 - `[JOIN] Naufal90 baru saja masuk ke server.`
 - `[KILL] Naufal90 membunuh Steve.`
-- `[XRAY?] Naufal90 menghancurkan DIAMOND_ORE pada koordinat X:120 Y:11 Z:-45.`
+- `[XRAY?] Naufal90 menghancurkan DIAMOND_ORE di X:120 Y:11 Z:-45.`
 
 ---
 
-## Cara Konfigurasi
+## Konfigurasi
 
-1. Buat Bot Telegram menggunakan [@BotFather](https://t.me/BotFather).
-2. Dapatkan **token** dan masukkan ke file `config.yml`.
-3. Atur block mana yang perlu dikirim notifikasinya di bagian `block_notify_filter`.
-4. Jalankan server dan nikmati notifikasi langsung ke Telegram!
+1. Buat Bot Telegram dengan [@BotFather](https://t.me/BotFather).
+2. Salin token dan isi di file `config.yml`.
+3. Dapatkan `chat_id` Telegram Anda (gunakan bot seperti [@userinfobot](https://t.me/userinfobot)).
+4. Jalankan server Anda, dan nikmati notifikasi otomatis ke Telegram!
 
 ---
 
-## Contoh Config (config.yml)
+## Contoh Config (`config.yml`)
 
 ```yaml
 bot_token: "ISI_TOKEN_BOT_ANDA"
@@ -50,3 +72,15 @@ block_notify_filter:
   DIAMOND_ORE: true
   GOLD_ORE: true
   IRON_ORE: false
+
+##Credits
+
+Developed with love by Naufal90.
+Support dan pertanyaan? Hubungi saya via Telegram!
+
+
+---
+
+##Lisensi
+
+Plugin ini dirilis di bawah lisensi MIT — silakan gunakan, modifikasi, dan distribusikan dengan bebas (dengan tetap mencantumkan kredit).
