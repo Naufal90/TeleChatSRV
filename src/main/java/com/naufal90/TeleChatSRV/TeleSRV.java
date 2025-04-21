@@ -18,6 +18,8 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.configuration.ConfigurationSection;
+
 
 import java.io.File;
 import java.io.OutputStream; 
@@ -30,6 +32,8 @@ import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TeleSRV extends JavaPlugin implements Listener {
 
@@ -40,20 +44,22 @@ public class TeleSRV extends JavaPlugin implements Listener {
     private String serverIP;
     private int serverPort;
     private long lastUpdatedId = 0;
+    private final Map<String, Boolean> blockNotifyFilter = new HashMap<>();
+    private final Map<String, Integer> xrayThresholdMap = new HashMap<>();
+    private final Map<String, Map<String, Integer>> playerMiningCount = new HashMap<>();
 
     @Override
     public void onEnable() {
         createPluginFolderAndConfig();
-
+        loadBlockFilterConfig();
+        loadXrayThresholdConfig();
         // Memuat konfigurasi
         loadServerConfig();
-
         // Memuat konfigurasi untuk kedua bot
         notifyBotToken = getConfig().getString("notifyBot.token", "");
         notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
         controlBotToken = getConfig().getString("controlBot.token", "");
         controlBotChatId = getConfig().getString("controlBot.chat_id", "");
-
         Bukkit.getPluginManager().registerEvents(this, this);  // Daftarkan listener
         startTelegramCommandListener();
     }
@@ -155,6 +161,7 @@ public void onPlayerQuit(PlayerQuitEvent event) {
         player
     );    
     sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+    playerMiningCount.remove(player);
 }
 
 // Event handler ketika player mati
@@ -181,22 +188,44 @@ public void onPlayerDeath(PlayerDeathEvent event) {
 @EventHandler
 public void onBlockBreak(BlockBreakEvent event) {
     Player player = event.getPlayer();
-    String blockType = event.getBlock().getType().toString();
-    String coordinates = String.format("X: %d, Y: %d, Z: %d",
-        event.getBlock().getLocation().getBlockX(),
-        event.getBlock().getLocation().getBlockY(),
-        event.getBlock().getLocation().getBlockZ());
-    String raw = String.format(
-        "⛏️ *[Mining]*\n" +
-        "👷 *%s* menambang: `%s`\n" +
-        "📍 Koordinat: `%s`", 
-        player.getName(), 
-        blockType, 
-        coordinates
-    );
-    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
-}
+    String blockType = event.getBlock().getType().toString().toUpperCase();
+    String playerName = player.getName();
 
+    // Filter notifikasi mining
+    if (blockNotifyFilter.getOrDefault(blockType, false)) {
+        String coordinates = String.format("X: %d, Y: %d, Z: %d",
+            event.getBlock().getLocation().getBlockX(),
+            event.getBlock().getLocation().getBlockY(),
+            event.getBlock().getLocation().getBlockZ());
+        String raw = String.format(
+            "⛏️ *[Mining]*\n" +
+            "👷 *%s* menambang: `%s`\n" +
+            "📍 Koordinat: `%s`", 
+            playerName, 
+            blockType, 
+            coordinates
+        );
+        sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+    }
+
+    // Deteksi Xray berdasarkan ambang batas
+    int threshold = xrayThresholdMap.getOrDefault(blockType, -1);
+    if (threshold > 0) {
+        Map<String, Integer> blockCounts = playerMiningCount.computeIfAbsent(playerName, k -> new HashMap<>());
+        int currentCount = blockCounts.getOrDefault(blockType, 0) + 1;
+        blockCounts.put(blockType, currentCount);
+
+        if (currentCount == threshold) {
+            String warning = String.format(
+                "⚠️ *[Deteksi Xray]*\n" +
+                "🧱 *%s* telah menambang *%d blok* `%s`",
+                playerName, currentCount, blockType
+            );
+            sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(warning));
+        }
+    }
+}
+    
     // Fungsi untuk mengirim pesan ke Telegram
     private void sendToTelegram(String botToken, String chatId, String message) {
     if (botToken.isEmpty() || chatId.isEmpty()) {
@@ -268,6 +297,26 @@ private String escapeMarkdownV2(String text) {
         serverIP = getConfig().getString("server.ip", "default_ip");
         serverPort = getConfig().getInt("server.port", 19132);
     }
+
+    private void loadBlockFilterConfig() {
+    blockNotifyFilter.clear();
+    ConfigurationSection filterSection = getConfig().getConfigurationSection("block_notify_filter");
+    if (filterSection != null) {
+        for (String key : filterSection.getKeys(false)) {
+            blockNotifyFilter.put(key.toUpperCase(), filterSection.getBoolean(key));
+        }
+    }
+}
+
+private void loadXrayThresholdConfig() {
+    xrayThresholdMap.clear();
+    ConfigurationSection thresholdSection = getConfig().getConfigurationSection("count_block_destroy_xray");
+    if (thresholdSection != null) {
+        for (String key : thresholdSection.getKeys(false)) {
+            xrayThresholdMap.put(key.toUpperCase(), thresholdSection.getInt(key));
+        }
+    }
+}
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
