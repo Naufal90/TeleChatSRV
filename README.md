@@ -72,15 +72,3 @@ block_notify_filter:
   DIAMOND_ORE: true
   GOLD_ORE: true
   IRON_ORE: false
-
-##Credits
-
-Developed with love by Naufal90.
-Support dan pertanyaan? Hubungi saya via Telegram!
-
-
----
-
-##Lisensi
-
-Plugin ini dirilis di bawah lisensi MIT — silakan gunakan, modifikasi, dan distribusikan dengan bebas (dengan tetap mencantumkan kredit).
