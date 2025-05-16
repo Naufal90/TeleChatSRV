@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Naufal90/TeleChatSRV/c6022d8dfcf5066614631cc1604aadc38d192018/.github/assets/logo.PNG" alt="TeleChatSRV Logo" width="200"/>
+  <img src=".github/assets/logo.PNG" alt="TeleChatSRV Logo" width="200"/>
 </p>
 
 <h1 align="center">TeleChatSRV</h1>
