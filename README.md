@@ -16,11 +16,11 @@
 </p>
 
 <p align="center">
-  <a href="#fitur-utama">Fitur</a> 
-  <a href="#mengapa-memilih-telechatsrv">Kenapa TeleChatSRV?</a> 
-  <a href="#contoh-notifikasi">Notifikasi</a> 
-  <a href="#konfigurasi">Cara Konfigurasi</a> 
-  <a href="#contoh-config">Contoh Config</a>
+  <a href="#fitur-utama">Fitur</a>  |  
+  <a href="#mengapa-memilih-telechatsrv">Kenapa TeleChatSRV?</a>  |  
+  <a href="#contoh-notifikasi">Notifikasi</a>  |  
+  <a href="#konfigurasi">Cara Konfigurasi</a>  |  
+  <a href="#contoh-config">Contoh Config</a>  |  
 </p>
 
 ---
