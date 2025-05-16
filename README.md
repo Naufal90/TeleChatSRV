@@ -16,10 +16,10 @@
 </p>
 
 <p align="center">
-  <a href="#fitur-utama">Fitur</a> â€¢
-  <a href="#mengapa-memilih-telechatsrv">Kenapa TeleChatSRV?</a> â€¢
-  <a href="#contoh-notifikasi">Notifikasi</a> â€¢
-  <a href="#konfigurasi">Cara Konfigurasi</a> â€¢
+  <a href="#fitur-utama">Fitur</a> 
+  <a href="#mengapa-memilih-telechatsrv">Kenapa TeleChatSRV?</a> 
+  <a href="#contoh-notifikasi">Notifikasi</a> 
+  <a href="#konfigurasi">Cara Konfigurasi</a> 
   <a href="#contoh-config">Contoh Config</a>
 </p>
 
@@ -37,7 +37,7 @@
 
 ## Mengapa Memilih TeleChatSRV?
 
-- Tidak memerlukan backend â€” cukup masukkan token & chat ID
+- Tidak memerlukan backend cukup masukkan token & chat ID
 - Notifikasi real-time tanpa delay
 - Konfigurasi fleksibel & modular lewat `config.yml`
 - Cocok untuk server publik, komunitas, hingga personal
@@ -107,6 +107,6 @@ count_block_destroy_xray:
 ## Siap Digunakan!
 
 Unduh versi terbaru dari [Releases](https://github.com/Naufal90/TeleChatSRV/releases)  
-Jangan lupa beri â­ jika plugin ini membantumu!
+Jangan lupa beri ⭐ jika plugin ini membantumu!
 
 ---
