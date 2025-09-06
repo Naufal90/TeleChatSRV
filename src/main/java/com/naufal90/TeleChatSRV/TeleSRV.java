@@ -34,6 +34,8 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TeleSRV extends JavaPlugin implements Listener {
 
@@ -67,9 +69,12 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        getLogger().info("Plugin dimatikan.");
+        if (telegramExecutor != null && !telegramExecutor.isShutdown()) {
+            telegramExecutor.shutdown();
     }
-
+    getLogger().info("Plugin dimatikan.");
+}
+    
     private void startTelegramCommandListener() {
     new BukkitRunnable() {
         @Override
