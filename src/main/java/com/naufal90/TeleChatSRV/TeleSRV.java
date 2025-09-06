@@ -18,6 +18,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TeleSRV extends JavaPlugin implements Listener {
 
@@ -46,9 +48,12 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
-        getLogger().info("Plugin dimatikan.");
+        if (telegramExecutor != null && !telegramExecutor.isShutdown()) {
+            telegramExecutor.shutdown();
     }
-
+    getLogger().info("Plugin dimatikan.");
+}
+    
     // Event handler untuk chat player
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
