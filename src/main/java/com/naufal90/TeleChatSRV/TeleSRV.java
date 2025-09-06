@@ -44,6 +44,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
     private String serverIP;
     private int serverPort;
     private long lastUpdatedId = 0;
+    private final ExecutorService telegramExecutor = Executors.newSingleThreadExecutor();
     private final Map<String, Boolean> blockNotifyFilter = new HashMap<>();
     private final Map<String, Integer> xrayThresholdMap = new HashMap<>();
     private final Map<String, Map<String, Integer>> playerMiningCount = new HashMap<>();
@@ -128,6 +129,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
     // Event handler untuk chat player
 @EventHandler
 public void onPlayerChat(AsyncPlayerChatEvent event) {
+    if (!getConfig().getBoolean("log.chat", true)) return;
     String player = event.getPlayer().getName();
     String message = event.getMessage();
     String raw = String.format(
@@ -142,6 +144,7 @@ public void onPlayerChat(AsyncPlayerChatEvent event) {
 // Event handler ketika player bergabung
 @EventHandler
 public void onPlayerJoin(PlayerJoinEvent event) {
+    if (!getConfig().getBoolean("log.join", true)) return;
     String player = event.getPlayer().getName();
     String raw = String.format(
         "🎉 *[Join]*\n" +
@@ -154,6 +157,7 @@ public void onPlayerJoin(PlayerJoinEvent event) {
 // Event handler ketika player keluar
 @EventHandler
 public void onPlayerQuit(PlayerQuitEvent event) {
+    if (!getConfig().getBoolean("log.quit", true)) return;
     String player = event.getPlayer().getName();
     String raw = String.format(
         "🚪 *[Leave]*\n" +
@@ -167,6 +171,7 @@ public void onPlayerQuit(PlayerQuitEvent event) {
 // Event handler ketika player mati
 @EventHandler
 public void onPlayerDeath(PlayerDeathEvent event) {
+    if (!getConfig().getBoolean("log.death", true)) return;
     Player player = event.getEntity();
     String reason = event.getDeathMessage();
     String coordinates = String.format("X: %d, Y: %d, Z: %d",
@@ -187,6 +192,7 @@ public void onPlayerDeath(PlayerDeathEvent event) {
 // Event handler untuk block break (mining)
 @EventHandler
 public void onBlockBreak(BlockBreakEvent event) {
+    if (!getConfig().getBoolean("log.mining", true)) return;
     Player player = event.getPlayer();
     String blockType = event.getBlock().getType().toString().toUpperCase();
     String playerName = player.getName();
@@ -232,57 +238,49 @@ public void onBlockBreak(BlockBreakEvent event) {
         getLogger().warning("Token atau Chat ID tidak valid!");
         return;
     }
+    if (message == null || message.trim().isEmpty()) return;
 
-    try {
-        if (message == null || message.trim().isEmpty()) {
-            getLogger().warning("Pesan kosong tidak dikirim");
-            return;
+    telegramExecutor.submit(() -> {
+        try {
+            // escape sekali di sini saja
+            String cleanedMsg = escapeMarkdownV2(message);
+
+            String payload = String.format(
+                "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
+                chatId,
+                cleanedMsg
+            );
+
+            HttpURLConnection conn = (HttpURLConnection) new URL(
+                "https://api.telegram.org/bot" + botToken + "/sendMessage"
+            ).openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(payload.getBytes(StandardCharsets.UTF_8));
+            }
+
+            if (conn.getResponseCode() != 200) {
+                getLogger().warning("Telegram API error: " + conn.getResponseMessage());
+            }
+
+            conn.disconnect();
+        } catch (Exception e) {
+            getLogger().warning("Gagal kirim Telegram: " + e.getMessage());
         }
-
-        // Escape karakter khusus MarkdownV2
-        String cleanedMsg = escapeMarkdownV2(message);
-        String payload = String.format(
-            "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
-            chatId,
-            cleanedMsg
-        );
-
-        HttpURLConnection conn = (HttpURLConnection) new URL(
-            "https://api.telegram.org/bot" + botToken + "/sendMessage"
-        ).openConnection();
-        
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setDoOutput(true);
-
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(payload.getBytes(StandardCharsets.UTF_8));
-        }
-
-        String response;
-        try (BufferedReader br = new BufferedReader(
-            new InputStreamReader(
-                conn.getResponseCode() == 200 ? conn.getInputStream() : conn.getErrorStream()
-            )
-        )) {
-            response = br.lines().collect(Collectors.joining());
-        }
-
-        if (conn.getResponseCode() != 200) {
-            getLogger().severe("Error Telegram API: " + response);
-        }
-    } catch (Exception e) {
-        getLogger().severe("Failed to send Telegram message: " + e.toString());
-    }
+    });
 }
-
+    
 // Method untuk escape karakter khusus MarkdownV2
 private String escapeMarkdownV2(String text) {
     return text.replaceAll("([_\\[\\]()~`>#+\\-=|{}\\.!])", "\\\\$1");
 }
     
     // Membuat folder plugin dan konfigurasi jika belum ada
-    private void createPluginFolderAndConfig() {
+    private void cprivate void sendToTelegram(String botToken, String chatId, String message) {reatePluginFolderAndConfig() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
