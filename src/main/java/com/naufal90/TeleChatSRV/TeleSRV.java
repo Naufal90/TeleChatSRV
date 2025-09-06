@@ -280,7 +280,7 @@ private String escapeMarkdownV2(String text) {
 }
     
     // Membuat folder plugin dan konfigurasi jika belum ada
-    private void cprivate void sendToTelegram(String botToken, String chatId, String message) {reatePluginFolderAndConfig() {
+    private void createPluginFolderAndConfig() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
