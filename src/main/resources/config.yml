@@ -10,6 +10,13 @@ server:
   ip: play.minechoseland.my.id
   port: 19132
 
+log:
+  chat: true
+  join: true
+  quit: true
+  death: true
+  mining: true
+
 block_notify_filter:
   ANCIENT_DEBRIS: true
   COAL_ORE: true
