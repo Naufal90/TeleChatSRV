@@ -20,7 +20,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.configuration.ConfigurationSection;
 
-
 import java.io.File;
 import java.io.OutputStream; 
 import java.io.BufferedReader;
@@ -47,21 +46,37 @@ public class TeleSRV extends JavaPlugin implements Listener {
     private String notifyBotChatId; // ID grup atau chat Telegram bot 1
     private String controlBotToken; // Token bot Telegram 2
     private String controlBotChatId; // ID grup atau chat Telegram bot 2
-    private String serverIP;
+    private String serverIP;    
+    private int telegramUpdateInterval;
+    private int connectionTimeout;
+    private int readTimeout;
+    private int cleanupInterval;
     private int serverPort;
+    private boolean enableRateLimiting;
+    private long notificationCooldown;
     private long lastUpdatedId = 0;
+    private final Map<String, Long> lastNotificationTime = new ConcurrentHashMap<>();
     private final ExecutorService telegramExecutor = Executors.newSingleThreadExecutor();
     private final Map<String, Boolean> blockNotifyFilter = new ConcurrentHashMap<>();
     private final Map<String, Integer> xrayThresholdMap = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Integer>> playerMiningCount = new ConcurrentHashMap<>();
 
+    // VARIABEL CACHE UNTUK PERFORMANCE
+    private boolean logChat, logJoin, logQuit, logDeath, logMining;
+
+    // CONSTANTS UNTUK OPTIMASI
+    private static final String TELEGRAM_API_URL = "https://api.telegram.org/bot";
+    private static final int CONNECTION_TIMEOUT = 5000;
+    private static final Pattern MARKDOWN_ESCAPE = Pattern.compile("([_\\[\\]()~`>#+\\-=|{}\\.!])");
+
     @Override
     public void onEnable() {
         createPluginFolderAndConfig();
+        loadPerformanceConfig();
         loadBlockFilterConfig();
         loadXrayThresholdConfig();
-        // Memuat konfigurasi
         loadServerConfig();
+        cacheConfigValues();
         // Memuat konfigurasi untuk kedua bot
         notifyBotToken = getConfig().getString("notifyBot.token", "");
         notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
@@ -69,15 +84,58 @@ public class TeleSRV extends JavaPlugin implements Listener {
         controlBotChatId = getConfig().getString("controlBot.chat_id", "");
         Bukkit.getPluginManager().registerEvents(this, this);  // Daftarkan listener
         startTelegramCommandListener();
+        startCleanupTask();
     }
 
     @Override
     public void onDisable() {
         if (telegramExecutor != null && !telegramExecutor.isShutdown()) {
             telegramExecutor.shutdown();
+            try {
+                if (!telegramExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    telegramExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                telegramExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        getLogger().info("Plugin dimatikan.");
     }
-    getLogger().info("Plugin dimatikan.");
-}
+
+    private void loadPerformanceConfig() {
+        telegramUpdateInterval = getConfig().getInt("performance.telegram_update_interval", 100);
+        connectionTimeout = getConfig().getInt("performance.connection_timeout", 5000);
+        readTimeout = getConfig().getInt("performance.read_timeout", 5000);
+        enableRateLimiting = getConfig().getBoolean("performance.enable_rate_limiting", true);
+        notificationCooldown = getConfig().getLong("performance.notification_cooldown", 5000);
+        cleanupInterval = getConfig().getInt("performance.cleanup_interval", 6000);
+    }
+
+    private void cacheConfigValues() {
+        logChat = getConfig().getBoolean("log.chat", true);
+        logJoin = getConfig().getBoolean("log.join", true);
+        logQuit = getConfig().getBoolean("log.quit", true);
+        logDeath = getConfig().getBoolean("log.death", true);
+        logMining = getConfig().getBoolean("log.mining", true);
+    }
+    
+    private void startCleanupTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupOfflinePlayerData();
+            }
+        }.runTaskTimer(this, cleanupInterval, cleanupInterval); 
+    }
+    
+    public void cleanupOfflinePlayerData() {
+        Set<String> onlinePlayers = Bukkit.getOnlinePlayers().stream()
+            .map(Player::getName)
+            .collect(Collectors.toSet());
+        
+        playerMiningCount.keySet().removeIf(player -> !onlinePlayers.contains(player));
+    }
     
     private void startTelegramCommandListener() {
     new BukkitRunnable() {
@@ -92,8 +150,8 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
+                conn.setConnectTimeout(connectionTimeout);
+                conn.setReadTimeout(readTimeout);
 
                 if (conn.getResponseCode() == 200) {
                     String response = new BufferedReader(
@@ -132,13 +190,13 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 getLogger().warning("Error checking Telegram updates: " + e.toString());
             }
         }
-    }.runTaskTimerAsynchronously(this, 0L, 100L); // setiap 5 detik
+    }.runTaskTimerAsynchronously(this, 0L, telegramUpdateInterval / 50L);
 }
     
     // Event handler untuk chat player
 @EventHandler
 public void onPlayerChat(AsyncPlayerChatEvent event) {
-    if (!getConfig().getBoolean("log.chat", true)) return;
+    if (!logChat) return;
     String player = event.getPlayer().getName();
     String message = event.getMessage();
     String raw = String.format(
@@ -153,7 +211,7 @@ public void onPlayerChat(AsyncPlayerChatEvent event) {
 // Event handler ketika player bergabung
 @EventHandler
 public void onPlayerJoin(PlayerJoinEvent event) {
-    if (!getConfig().getBoolean("log.join", true)) return;
+    if (!logJoin) return;
     String player = event.getPlayer().getName();
     String raw = String.format(
         "🎉 *[Join]*\n" +
@@ -166,7 +224,7 @@ public void onPlayerJoin(PlayerJoinEvent event) {
 // Event handler ketika player keluar
 @EventHandler
 public void onPlayerQuit(PlayerQuitEvent event) {
-    if (!getConfig().getBoolean("log.quit", true)) return;
+    if (!logQuit) return;
     String player = event.getPlayer().getName();
     String raw = String.format(
         "🚪 *[Leave]*\n" +
@@ -180,7 +238,7 @@ public void onPlayerQuit(PlayerQuitEvent event) {
 // Event handler ketika player mati
 @EventHandler
 public void onPlayerDeath(PlayerDeathEvent event) {
-    if (!getConfig().getBoolean("log.death", true)) return;
+    if (!logDeath) return;
     Player player = event.getEntity();
     String reason = event.getDeathMessage();
     String coordinates = String.format("X: %d, Y: %d, Z: %d",
@@ -201,10 +259,15 @@ public void onPlayerDeath(PlayerDeathEvent event) {
 // Event handler untuk block break (mining)
 @EventHandler
 public void onBlockBreak(BlockBreakEvent event) {
-    if (!getConfig().getBoolean("log.mining", true)) return;
+    if (!logMining) return;
     Player player = event.getPlayer();
     String blockType = event.getBlock().getType().toString().toUpperCase();
     String playerName = player.getName();
+
+    // skip jika block tidak dalam filter
+        if (!blockNotifyFilter.containsKey(blockType) && !xrayThresholdMap.containsKey(blockType)) {
+            return;
+        }
 
     // Filter notifikasi mining
     if (blockNotifyFilter.getOrDefault(blockType, false)) {
@@ -224,9 +287,9 @@ public void onBlockBreak(BlockBreakEvent event) {
     }
 
     // Deteksi Xray berdasarkan ambang batas
-    int threshold = xrayThresholdMap.getOrDefault(blockType, -1);
-    if (threshold > 0) {
-        Map<String, Integer> blockCounts = playerMiningCount.computeIfAbsent(playerName, k -> new HashMap<>());
+    Integer threshold = xrayThresholdMap.get(blockType);
+        if (threshold != null && threshold > 0) {
+        Map<String, Integer> blockCounts = playerMiningCount.computeIfAbsent(playerName, k -> new ConcurrentHashMap<>());
         int currentCount = blockCounts.getOrDefault(blockType, 0) + 1;
         blockCounts.put(blockType, currentCount);
 
@@ -248,6 +311,17 @@ public void onBlockBreak(BlockBreakEvent event) {
         return;
     }
     if (message == null || message.trim().isEmpty()) return;
+
+    if (enableRateLimiting) {
+        long now = System.currentTimeMillis();
+        Long lastTime = lastNotificationTime.get(chatId);
+        
+        if (lastTime != null && (now - lastTime) < notificationCooldown) {
+            getLogger().info("Rate limiting: Skip notifikasi ke " + chatId);
+            return;
+        }
+        lastNotificationTime.put(chatId, now);
+    }
 
     telegramExecutor.submit(() -> {
         try {
@@ -284,7 +358,6 @@ public void onBlockBreak(BlockBreakEvent event) {
 }
     
 // Method untuk escape karakter khusus MarkdownV2
-private static final Pattern MARKDOWN_ESCAPE = Pattern.compile("([_\\[\\]()~`>#+\\-=|{}\\.!])");
 private String escapeMarkdownV2(String text) {
     return MARKDOWN_ESCAPE.matcher(text).replaceAll("\\\\$1");
 }
@@ -389,21 +462,30 @@ private void loadXrayThresholdConfig() {
             }
         }
 
-        if (command.getName().equalsIgnoreCase("reloadtg")) {
-            if (!sender.hasPermission("telechat.admin")) {
-                sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
-                return true;
-            }
+ if (command.getName().equalsIgnoreCase("reloadtg")) {
+    if (!sender.hasPermission("telechat.admin")) {
+        sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
+        return true;
+    }
 
-            reloadConfig();
-            notifyBotToken = getConfig().getString("notifyBot.token", "");
-            notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
-            controlBotToken = getConfig().getString("controlBot.token", "");
-            controlBotChatId = getConfig().getString("controlBot.chat_id", "");
+    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+        reloadConfig();
+        cacheConfigValues();
+        loadBlockFilterConfig();
+        loadXrayThresholdConfig();
+        
+        // PASTIKAN UPDATE TOKEN SETELAH RELOAD CONFIG
+        notifyBotToken = getConfig().getString("notifyBot.token", "");
+        notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
+        controlBotToken = getConfig().getString("controlBot.token", "");
+        controlBotChatId = getConfig().getString("controlBot.chat_id", "");
+        
+        Bukkit.getScheduler().runTask(this, () -> {
             sender.sendMessage("§aKonfigurasi Telegram telah di-reload!");
-            return true;
-        }
-
+        });
+    });
+    return true;
+}
         if (command.getName().equalsIgnoreCase("status")) {
     int onlinePlayers = Bukkit.getOnlinePlayers().size();
     int maxPlayers = Bukkit.getMaxPlayers();
