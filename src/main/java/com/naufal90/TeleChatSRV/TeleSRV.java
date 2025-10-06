@@ -47,9 +47,9 @@ public class TeleSRV extends JavaPlugin implements Listener {
     private int serverPort;
     private long lastUpdatedId = 0;
     private final ExecutorService telegramExecutor = Executors.newSingleThreadExecutor();
-    private final Map<String, Boolean> blockNotifyFilter = new HashMap<>();
-    private final Map<String, Integer> xrayThresholdMap = new HashMap<>();
-    private final Map<String, Map<String, Integer>> playerMiningCount = new HashMap<>();
+    private final Map<String, Boolean> blockNotifyFilter = new ConcurrentHashMap<>();
+    private final Map<String, Integer> xrayThresholdMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Integer>> playerMiningCount = new ConcurrentHashMap<>();
 
     @Override
     public void onEnable() {
@@ -280,8 +280,9 @@ public void onBlockBreak(BlockBreakEvent event) {
 }
     
 // Method untuk escape karakter khusus MarkdownV2
+private static final Pattern MARKDOWN_ESCAPE = Pattern.compile("([_\\[\\]()~`>#+\\-=|{}\\.!])");
 private String escapeMarkdownV2(String text) {
-    return text.replaceAll("([_\\[\\]()~`>#+\\-=|{}\\.!])", "\\\\$1");
+    return MARKDOWN_ESCAPE.matcher(text).replaceAll("\\\\$1");
 }
     
     // Membuat folder plugin dan konfigurasi jika belum ada
