@@ -7,8 +7,8 @@ controlBot:
   chat_id: "YOUR_BOT_2_CHAT_ID"
 
 server:
-  ip: play.minechoseland.my.id
-  port: 19132
+  ip: dev.naufal90.my.id
+  port: 25565
 
 log:
   chat: true
@@ -64,3 +64,13 @@ count_block_destroy_xray:
   RAW_GOLD: 64
   RAW_IRON: 64
   REDSTONE_ORE: 64
+
+performance:
+  telegram_update_interval: 2000  # Interval cek command Telegram (ms)
+
+  connection_timeout: 5000        # Timeout koneksi HTTP (ms)
+  read_timeout: 5000              # Timeout baca response sendMessage (ms)
+                                  # (Polling getUpdates otomatis pakai max(15000, read_timeout*3))
+  enable_rate_limiting: true      # Aktifkan anti-spam
+  notification_cooldown: 5000     # Cooldown notifikasi per tipe event (ms)
+  cleanup_interval: 6000          # Interval cleanup data player (ticks)
