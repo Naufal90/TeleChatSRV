@@ -57,7 +57,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
     private boolean logChat, logJoin, logQuit, logDeath, logMining;
 
     private static final String TELEGRAM_API_URL = "https://api.telegram.org/bot";
-    private static final Pattern MDV2_ESCAPE = Pattern.compile("([_*\\[\\]()~`>#+\\-=|{}\\.!\\\\])");
+    private static final Pattern USER_INPUT_ESCAPE = Pattern.compile("([_*\\[\\]()~`>#+\\-=|{}\\.!\\\\])");
 
     @Override
     public void onEnable() {
@@ -72,7 +72,10 @@ public class TeleSRV extends JavaPlugin implements Listener {
         controlBotToken = getConfig().getString("controlBot.token", "");
         controlBotChatId = getConfig().getString("controlBot.chat_id", "");
         Bukkit.getPluginManager().registerEvents(this, this);
-        startTelegramCommandListener();
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            deleteWebhookIfNeeded();
+            startTelegramCommandListener();
+        });
         startCleanupTask();
     }
 
@@ -125,27 +128,65 @@ public class TeleSRV extends JavaPlugin implements Listener {
         playerMiningCount.keySet().removeIf(p -> !onlinePlayers.contains(p));
     }
 
+    private void deleteWebhookIfNeeded() {
+        if (controlBotToken.isEmpty()) return;
+        HttpURLConnection conn = null;
+        try {
+            String url = TELEGRAM_API_URL + controlBotToken + "/deleteWebhook?drop_pending_updates=false";
+            conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(connectionTimeout);
+            conn.setReadTimeout(10000);
+
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                getLogger().info("[TeleChatSRV] Webhook dihapus / tidak ada webhook aktif. Polling siap dimulai.");
+            } else {
+                getLogger().warning("[TeleChatSRV] deleteWebhook gagal HTTP " + code + " — polling mungkin gagal dengan 409.");
+            }
+        } catch (Exception e) {
+            getLogger().warning("[TeleChatSRV] Gagal menghapus webhook: " + e.getMessage());
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
     private void startTelegramCommandListener() {
-        long ticks = Math.max(40L, telegramUpdateInterval / 50L);
+        long intervalTicks = Math.max(40L, telegramUpdateInterval / 50L);
         final int pollReadTimeout = Math.max(15000, readTimeout * 3);
 
         new BukkitRunnable() {
+            private int conflictCount = 0;
+            private long skipUntil   = 0;
+
             @Override
             public void run() {
                 if (controlBotToken.isEmpty()) return;
+                if (System.currentTimeMillis() < skipUntil) return;
+
                 HttpURLConnection conn = null;
                 try {
-                    String url = TELEGRAM_API_URL + controlBotToken +
-                        "/getUpdates?offset=" + (lastUpdatedId + 1) +
-                        "&timeout=0&allowed_updates=message";
+                    String url = String.format(
+                        "https://api.telegram.org/bot%s/getUpdates?offset=%d&timeout=0&allowed_updates=message",
+                        controlBotToken,
+                        lastUpdatedId + 1
+                    );
+
                     conn = (HttpURLConnection) new URL(url).openConnection();
                     conn.setRequestMethod("GET");
                     conn.setConnectTimeout(connectionTimeout);
                     conn.setReadTimeout(pollReadTimeout);
 
-                    if (conn.getResponseCode() == 200) {
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                        String response = reader.lines().collect(Collectors.joining("\n"));
+                    int responseCode = conn.getResponseCode();
+
+                    if (responseCode == 200) {
+                        conflictCount = 0;
+                        skipUntil = 0;
+
+                        String response = new BufferedReader(
+                            new InputStreamReader(conn.getInputStream()))
+                            .lines().collect(Collectors.joining("\n"));
+
                         JSONObject json = new JSONObject(response);
                         JSONArray updates = json.getJSONArray("result");
 
@@ -156,6 +197,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
                             if (update.has("message") && !update.isNull("message")) {
                                 JSONObject message = update.getJSONObject("message");
+
                                 if (message.has("text") &&
                                     String.valueOf(message.getJSONObject("chat").getLong("id"))
                                         .equals(controlBotChatId)) {
@@ -171,9 +213,28 @@ public class TeleSRV extends JavaPlugin implements Listener {
                             }
                         }
                         lastUpdatedId = newLastId;
+
+                    } else if (responseCode == 409) {
+                        conflictCount++;
+                        long waitMs = Math.min(60000L, 5000L * (1L << Math.min(conflictCount - 1, 3)));
+                        skipUntil = System.currentTimeMillis() + waitMs;
+
+                        if (conflictCount == 1) {
+                            getLogger().warning("[TeleChatSRV] HTTP 409 Conflict — kemungkinan webhook masih aktif " +
+                                "atau ada instance server lain berjalan dengan token yang sama. " +
+                                "Coba hapus webhook via: https://api.telegram.org/bot<TOKEN>/deleteWebhook");
+                        } else if (conflictCount <= 5) {
+                            getLogger().warning("[TeleChatSRV] HTTP 409 (ke-" + conflictCount + ") — " +
+                                "tunggu " + (waitMs / 1000) + " detik sebelum coba lagi.");
+                        } else {
+                            getLogger().severe("[TeleChatSRV] HTTP 409 terjadi " + conflictCount + "x. " +
+                                "Polling dihentikan sementara 60 detik. Periksa apakah ada dua server " +
+                                "berjalan dengan token yang sama, atau hapus webhook secara manual.");
+                        }
                     } else {
-                        getLogger().warning("Telegram getUpdates HTTP " + conn.getResponseCode());
+                        getLogger().warning("[TeleChatSRV] Telegram getUpdates HTTP " + responseCode);
                     }
+
                 } catch (java.net.SocketTimeoutException e) {
                     getLogger().warning("[TeleChatSRV] Polling timeout (akan coba lagi): " + e.getMessage());
                 } catch (Exception e) {
@@ -182,19 +243,19 @@ public class TeleSRV extends JavaPlugin implements Listener {
                     if (conn != null) conn.disconnect();
                 }
             }
-        }.runTaskTimerAsynchronously(this, 0L, ticks);
+        }.runTaskTimerAsynchronously(this, 20L, intervalTicks);
     }
 
-    private String escapeMd(String text) {
+    private String escapeUserInput(String text) {
         if (text == null) return "";
-        return MDV2_ESCAPE.matcher(text).replaceAll("\\\\$1");
+        return USER_INPUT_ESCAPE.matcher(text).replaceAll("\\\\$1");
     }
-
+    
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         if (!logChat) return;
-        String player  = escapeMd(event.getPlayer().getName());
-        String message = escapeMd(event.getMessage());
+        String player  = escapeUserInput(event.getPlayer().getName());
+        String message = escapeUserInput(event.getMessage());
         String formatted = String.format(
             "💬 *\\[Chat\\]*\n👤 *%s*: %s",
             player, message
@@ -205,7 +266,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         if (!logJoin) return;
-        String player = escapeMd(event.getPlayer().getName());
+        String player = escapeUserInput(event.getPlayer().getName());
         String formatted = String.format(
             "🎉 *\\[Join\\]*\n🟢 *%s* telah bergabung ke server\\!",
             player
@@ -216,7 +277,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         if (!logQuit) return;
-        String player = escapeMd(event.getPlayer().getName());
+        String player = escapeUserInput(event.getPlayer().getName());
         String formatted = String.format(
             "🚪 *\\[Leave\\]*\n🔴 *%s* telah keluar dari server\\.",
             player
@@ -229,8 +290,8 @@ public class TeleSRV extends JavaPlugin implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         if (!logDeath) return;
         Player player    = event.getEntity();
-        String playerName = escapeMd(player.getName());
-        String reason    = escapeMd(
+        String playerName = escapeUserInput(player.getName());
+        String reason    = escapeUserInput(
             event.getDeathMessage() != null ? event.getDeathMessage() : "tidak diketahui"
         );
         String coordinates = String.format("X: %d, Y: %d, Z: %d",
@@ -260,7 +321,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 event.getBlock().getLocation().getBlockX(),
                 event.getBlock().getLocation().getBlockY(),
                 event.getBlock().getLocation().getBlockZ());
-            String escaped = escapeMd(playerName);
+            String escaped = escapeUserInput(playerName);
             String formatted = String.format(
                 "⛏️ *\\[Mining\\]*\n👷 *%s* menambang: `%s`\n📍 Koordinat: `%s`",
                 escaped, blockType, coordinates
@@ -277,7 +338,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
             blockCounts.put(blockType, currentCount);
 
             if (currentCount == threshold) {
-                String escaped = escapeMd(playerName);
+                String escaped = escapeUserInput(playerName);
                 String warning = String.format(
                     "⚠️ *\\[Deteksi Xray\\]*\n🧱 *%s* telah menambang *%d blok* `%s`",
                     escaped, currentCount, blockType
@@ -287,7 +348,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
             }
         }
     }
-
+    
     private void sendToTelegram(String botToken, String chatId, String message, String rateLimitKey) {
         if (botToken.isEmpty() || chatId.isEmpty()) {
             getLogger().warning("Token atau Chat ID tidak valid!");
@@ -311,7 +372,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
             try {
                 JSONObject payload = new JSONObject();
                 payload.put("chat_id", chatId);
-                payload.put("text", finalMessage);
+                payload.put("text", finalMessage);   
                 payload.put("parse_mode", "MarkdownV2");
                 byte[] payloadBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
 
@@ -377,6 +438,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+
         if (command.getName().equalsIgnoreCase("settg")) {
             if (!sender.hasPermission("telechat.admin")) {
                 sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
@@ -471,7 +533,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                     totalPing += ping;
                     counted++;
                     playerList.append("\\- ")
-                              .append(escapeMd(p.getName()))
+                              .append(escapeUserInput(p.getName()))
                               .append(" \\(").append(ping).append("ms\\)\n");
                 } catch (Exception ignored) {}
             }
@@ -480,7 +542,7 @@ public class TeleSRV extends JavaPlugin implements Listener {
                 ? playerList.toString()
                 : "\\- Tidak ada pemain online\n";
             final long   averagePing   = counted > 0 ? totalPing / counted : 0;
-            final String escapedIP     = escapeMd(serverIP);
+            final String escapedIP     = escapeUserInput(serverIP);
 
             new BukkitRunnable() {
                 @Override
