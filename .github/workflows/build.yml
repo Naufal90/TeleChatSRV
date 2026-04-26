@@ -3,7 +3,7 @@ name: Build Plugin
 on:
   push:
     branches:
-      - v2.0.5
+      - 2.0.5
 
 jobs:
   build:
