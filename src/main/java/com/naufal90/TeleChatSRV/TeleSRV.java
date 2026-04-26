@@ -12,314 +12,368 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.configuration.ConfigurationSection;
 
-
 import java.io.File;
-import java.io.OutputStream; 
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.stream.Collectors;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import org.json.JSONObject;
-import org.json.JSONArray;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.json.JSONObject;
+import org.json.JSONArray;
 
 public class TeleSRV extends JavaPlugin implements Listener {
 
-    private String notifyBotToken; // Token bot Telegram 1
-    private String notifyBotChatId; // ID grup atau chat Telegram bot 1
-    private String controlBotToken; // Token bot Telegram 2
-    private String controlBotChatId; // ID grup atau chat Telegram bot 2
+    private String notifyBotToken;
+    private String notifyBotChatId;
+    private String controlBotToken;
+    private String controlBotChatId;
     private String serverIP;
+    private int telegramUpdateInterval;
+    private int connectionTimeout;
+    private int readTimeout;
+    private int cleanupInterval;
     private int serverPort;
+    private boolean enableRateLimiting;
+    private long notificationCooldown;
     private long lastUpdatedId = 0;
+    private final Map<String, Long> lastNotificationTime = new ConcurrentHashMap<>();
     private final ExecutorService telegramExecutor = Executors.newSingleThreadExecutor();
-    private final Map<String, Boolean> blockNotifyFilter = new HashMap<>();
-    private final Map<String, Integer> xrayThresholdMap = new HashMap<>();
-    private final Map<String, Map<String, Integer>> playerMiningCount = new HashMap<>();
+    private final Map<String, Boolean> blockNotifyFilter = new ConcurrentHashMap<>();
+    private final Map<String, Integer> xrayThresholdMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Integer>> playerMiningCount = new ConcurrentHashMap<>();
+
+    private boolean logChat, logJoin, logQuit, logDeath, logMining;
+
+    private static final String TELEGRAM_API_URL = "https://api.telegram.org/bot";
+    private static final Pattern MDV2_ESCAPE = Pattern.compile("([_*\\[\\]()~`>#+\\-=|{}\\.!\\\\])");
 
     @Override
     public void onEnable() {
         createPluginFolderAndConfig();
+        loadPerformanceConfig();
         loadBlockFilterConfig();
         loadXrayThresholdConfig();
-        // Memuat konfigurasi
         loadServerConfig();
-        // Memuat konfigurasi untuk kedua bot
+        cacheConfigValues();
         notifyBotToken = getConfig().getString("notifyBot.token", "");
         notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
         controlBotToken = getConfig().getString("controlBot.token", "");
         controlBotChatId = getConfig().getString("controlBot.chat_id", "");
-        Bukkit.getPluginManager().registerEvents(this, this);  // Daftarkan listener
+        Bukkit.getPluginManager().registerEvents(this, this);
         startTelegramCommandListener();
+        startCleanupTask();
     }
 
     @Override
     public void onDisable() {
         if (telegramExecutor != null && !telegramExecutor.isShutdown()) {
             telegramExecutor.shutdown();
-    }
-    getLogger().info("Plugin dimatikan.");
-}
-    
-    private void startTelegramCommandListener() {
-    new BukkitRunnable() {
-        @Override
-        public void run() {
             try {
-                String url = String.format(
-                    "https://api.telegram.org/bot%s/getUpdates?offset=%d&allowed_updates=message", 
-                    controlBotToken, 
-                    lastUpdatedId + 1
-                );
+                if (!telegramExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    telegramExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                telegramExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        getLogger().info("Plugin dimatikan.");
+    }
 
-                HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
-                conn.setReadTimeout(5000);
+    private void loadPerformanceConfig() {
+        telegramUpdateInterval = getConfig().getInt("performance.telegram_update_interval", 2000);
+        connectionTimeout = getConfig().getInt("performance.connection_timeout", 5000);
+        readTimeout = getConfig().getInt("performance.read_timeout", 5000);
+        enableRateLimiting = getConfig().getBoolean("performance.enable_rate_limiting", true);
+        notificationCooldown = getConfig().getLong("performance.notification_cooldown", 5000);
+        cleanupInterval = getConfig().getInt("performance.cleanup_interval", 6000);
+    }
 
-                if (conn.getResponseCode() == 200) {
-                    String response = new BufferedReader(
-                        new InputStreamReader(conn.getInputStream()))
-                        .lines().collect(Collectors.joining("\n"));
+    private void cacheConfigValues() {
+        logChat  = getConfig().getBoolean("log.chat", true);
+        logJoin  = getConfig().getBoolean("log.join", true);
+        logQuit  = getConfig().getBoolean("log.quit", true);
+        logDeath = getConfig().getBoolean("log.death", true);
+        logMining = getConfig().getBoolean("log.mining", true);
+    }
 
-                    JSONObject json = new JSONObject(response);
-                    JSONArray updates = json.getJSONArray("result");
+    private void startCleanupTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupOfflinePlayerData();
+            }
+        }.runTaskTimer(this, cleanupInterval, cleanupInterval);
+    }
 
-                    long newLastId = lastUpdatedId;
+    public void cleanupOfflinePlayerData() {
+        Set<String> onlinePlayers = Bukkit.getOnlinePlayers().stream()
+            .map(Player::getName)
+            .collect(Collectors.toSet());
+        playerMiningCount.keySet().removeIf(p -> !onlinePlayers.contains(p));
+    }
 
-                    for (int i = 0; i < updates.length(); i++) {
-                        JSONObject update = updates.getJSONObject(i);
-                        newLastId = update.getLong("update_id");
+    private void startTelegramCommandListener() {
+        long ticks = Math.max(40L, telegramUpdateInterval / 50L);
+        final int pollReadTimeout = Math.max(15000, readTimeout * 3);
 
-                        if (update.has("message") && !update.isNull("message")) {
-                            JSONObject message = update.getJSONObject("message");
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (controlBotToken.isEmpty()) return;
+                HttpURLConnection conn = null;
+                try {
+                    String url = TELEGRAM_API_URL + controlBotToken +
+                        "/getUpdates?offset=" + (lastUpdatedId + 1) +
+                        "&timeout=0&allowed_updates=message";
+                    conn = (HttpURLConnection) new URL(url).openConnection();
+                    conn.setRequestMethod("GET");
+                    conn.setConnectTimeout(connectionTimeout);
+                    conn.setReadTimeout(pollReadTimeout);
 
-                            if (message.has("text") && 
-                                String.valueOf(message.getJSONObject("chat").getLong("id")).equals(controlBotChatId)) {
+                    if (conn.getResponseCode() == 200) {
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                        String response = reader.lines().collect(Collectors.joining("\n"));
+                        JSONObject json = new JSONObject(response);
+                        JSONArray updates = json.getJSONArray("result");
 
-                                String text = message.getString("text").trim();
-                                if (text.equals("/status")) {
-                                    getLogger().info("Perintah /status diterima dari Telegram, mengeksekusi...");
-                                    Bukkit.getScheduler().runTask(TeleSRV.this, () -> {
-                                        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "status");
-                                    });
+                        long newLastId = lastUpdatedId;
+                        for (int i = 0; i < updates.length(); i++) {
+                            JSONObject update = updates.getJSONObject(i);
+                            newLastId = update.getLong("update_id");
+
+                            if (update.has("message") && !update.isNull("message")) {
+                                JSONObject message = update.getJSONObject("message");
+                                if (message.has("text") &&
+                                    String.valueOf(message.getJSONObject("chat").getLong("id"))
+                                        .equals(controlBotChatId)) {
+
+                                    String text = message.getString("text").trim();
+                                    if (text.equals("/status")) {
+                                        getLogger().info("Perintah /status diterima dari Telegram, mengeksekusi...");
+                                        Bukkit.getScheduler().runTask(TeleSRV.this, () ->
+                                            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "status")
+                                        );
+                                    }
                                 }
                             }
                         }
+                        lastUpdatedId = newLastId;
+                    } else {
+                        getLogger().warning("Telegram getUpdates HTTP " + conn.getResponseCode());
                     }
+                } catch (java.net.SocketTimeoutException e) {
+                    getLogger().warning("[TeleChatSRV] Polling timeout (akan coba lagi): " + e.getMessage());
+                } catch (Exception e) {
+                    getLogger().warning("[TeleChatSRV] Error checking Telegram updates: " + e.toString());
+                } finally {
+                    if (conn != null) conn.disconnect();
+                }
+            }
+        }.runTaskTimerAsynchronously(this, 0L, ticks);
+    }
 
-                    lastUpdatedId = newLastId;
+    private String escapeMd(String text) {
+        if (text == null) return "";
+        return MDV2_ESCAPE.matcher(text).replaceAll("\\\\$1");
+    }
+
+    @EventHandler
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        if (!logChat) return;
+        String player  = escapeMd(event.getPlayer().getName());
+        String message = escapeMd(event.getMessage());
+        String formatted = String.format(
+            "💬 *\\[Chat\\]*\n👤 *%s*: %s",
+            player, message
+        );
+        sendToTelegram(notifyBotToken, notifyBotChatId, formatted, "chat");
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        if (!logJoin) return;
+        String player = escapeMd(event.getPlayer().getName());
+        String formatted = String.format(
+            "🎉 *\\[Join\\]*\n🟢 *%s* telah bergabung ke server\\!",
+            player
+        );
+        sendToTelegram(notifyBotToken, notifyBotChatId, formatted, "join:" + event.getPlayer().getName());
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        if (!logQuit) return;
+        String player = escapeMd(event.getPlayer().getName());
+        String formatted = String.format(
+            "🚪 *\\[Leave\\]*\n🔴 *%s* telah keluar dari server\\.",
+            player
+        );
+        sendToTelegram(notifyBotToken, notifyBotChatId, formatted, "quit:" + event.getPlayer().getName());
+        playerMiningCount.remove(event.getPlayer().getName());
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        if (!logDeath) return;
+        Player player    = event.getEntity();
+        String playerName = escapeMd(player.getName());
+        String reason    = escapeMd(
+            event.getDeathMessage() != null ? event.getDeathMessage() : "tidak diketahui"
+        );
+        String coordinates = String.format("X: %d, Y: %d, Z: %d",
+            player.getLocation().getBlockX(),
+            player.getLocation().getBlockY(),
+            player.getLocation().getBlockZ());
+        String formatted = String.format(
+            "☠️ *\\[Death\\]*\n⚫ *%s* mati karena: %s\n📍 Koordinat: `%s`",
+            playerName, reason, coordinates
+        );
+        sendToTelegram(notifyBotToken, notifyBotChatId, formatted, "death:" + player.getName());
+    }
+
+    @EventHandler
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (!logMining) return;
+        Player player    = event.getPlayer();
+        String blockType = event.getBlock().getType().toString().toUpperCase();
+        String playerName = player.getName();
+
+        if (!blockNotifyFilter.containsKey(blockType) && !xrayThresholdMap.containsKey(blockType)) {
+            return;
+        }
+
+        if (blockNotifyFilter.getOrDefault(blockType, false)) {
+            String coordinates = String.format("X: %d, Y: %d, Z: %d",
+                event.getBlock().getLocation().getBlockX(),
+                event.getBlock().getLocation().getBlockY(),
+                event.getBlock().getLocation().getBlockZ());
+            String escaped = escapeMd(playerName);
+            String formatted = String.format(
+                "⛏️ *\\[Mining\\]*\n👷 *%s* menambang: `%s`\n📍 Koordinat: `%s`",
+                escaped, blockType, coordinates
+            );
+            sendToTelegram(notifyBotToken, notifyBotChatId, formatted,
+                "mining:" + playerName + ":" + blockType);
+        }
+
+        Integer threshold = xrayThresholdMap.get(blockType);
+        if (threshold != null && threshold > 0) {
+            Map<String, Integer> blockCounts =
+                playerMiningCount.computeIfAbsent(playerName, k -> new ConcurrentHashMap<>());
+            int currentCount = blockCounts.getOrDefault(blockType, 0) + 1;
+            blockCounts.put(blockType, currentCount);
+
+            if (currentCount == threshold) {
+                String escaped = escapeMd(playerName);
+                String warning = String.format(
+                    "⚠️ *\\[Deteksi Xray\\]*\n🧱 *%s* telah menambang *%d blok* `%s`",
+                    escaped, currentCount, blockType
+                );
+                sendToTelegram(notifyBotToken, notifyBotChatId, warning,
+                    "xray:" + playerName + ":" + blockType);
+            }
+        }
+    }
+
+    private void sendToTelegram(String botToken, String chatId, String message, String rateLimitKey) {
+        if (botToken.isEmpty() || chatId.isEmpty()) {
+            getLogger().warning("Token atau Chat ID tidak valid!");
+            return;
+        }
+        if (message == null || message.trim().isEmpty()) return;
+
+        if (enableRateLimiting) {
+            long now = System.currentTimeMillis();
+            String key = chatId + ":" + rateLimitKey;
+            Long lastTime = lastNotificationTime.get(key);
+            if (lastTime != null && (now - lastTime) < notificationCooldown) {
+                return;
+            }
+            lastNotificationTime.put(key, now);
+        }
+
+        final String finalMessage = message;
+        telegramExecutor.submit(() -> {
+            HttpURLConnection conn = null;
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("chat_id", chatId);
+                payload.put("text", finalMessage);
+                payload.put("parse_mode", "MarkdownV2");
+                byte[] payloadBytes = payload.toString().getBytes(StandardCharsets.UTF_8);
+
+                conn = (HttpURLConnection) new URL(
+                    TELEGRAM_API_URL + botToken + "/sendMessage"
+                ).openConnection();
+
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(connectionTimeout);
+                conn.setReadTimeout(readTimeout);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(payloadBytes);
+                }
+
+                int code = conn.getResponseCode();
+                if (code != 200) {
+                    getLogger().warning("Telegram API error " + code + ": " + conn.getResponseMessage());
                 }
             } catch (Exception e) {
-                getLogger().warning("Error checking Telegram updates: " + e.toString());
+                getLogger().warning("Gagal kirim Telegram: " + e.getMessage());
+            } finally {
+                if (conn != null) conn.disconnect();
             }
-        }
-    }.runTaskTimerAsynchronously(this, 0L, 100L); // setiap 5 detik
-}
-    
-    // Event handler untuk chat player
-@EventHandler
-public void onPlayerChat(AsyncPlayerChatEvent event) {
-    if (!getConfig().getBoolean("log.chat", true)) return;
-    String player = event.getPlayer().getName();
-    String message = event.getMessage();
-    String raw = String.format(
-        "💬 *[Chat]*\n" +
-        "👤 *%s*: %s", 
-        player, 
-        message
-     );
-    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
-}
-
-// Event handler ketika player bergabung
-@EventHandler
-public void onPlayerJoin(PlayerJoinEvent event) {
-    if (!getConfig().getBoolean("log.join", true)) return;
-    String player = event.getPlayer().getName();
-    String raw = String.format(
-        "🎉 *[Join]*\n" +
-        "🟢 *%s* telah bergabung ke server!", 
-        player
-    );
-    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
-}
-
-// Event handler ketika player keluar
-@EventHandler
-public void onPlayerQuit(PlayerQuitEvent event) {
-    if (!getConfig().getBoolean("log.quit", true)) return;
-    String player = event.getPlayer().getName();
-    String raw = String.format(
-        "🚪 *[Leave]*\n" +
-        "🔴 *%s* telah keluar dari server.",
-        player
-    );    
-    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
-    playerMiningCount.remove(player);
-}
-
-// Event handler ketika player mati
-@EventHandler
-public void onPlayerDeath(PlayerDeathEvent event) {
-    if (!getConfig().getBoolean("log.death", true)) return;
-    Player player = event.getEntity();
-    String reason = event.getDeathMessage();
-    String coordinates = String.format("X: %d, Y: %d, Z: %d",
-        player.getLocation().getBlockX(),
-        player.getLocation().getBlockY(),
-        player.getLocation().getBlockZ());
-    String raw = String.format(
-        "☠️ *[Death]*\n" +
-        "⚫ *%s* mati karena: %s\n" +
-        "📍 Koordinat: `%s`",
-        player.getName(), 
-        reason, 
-        coordinates
-    );
-    sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
-}
-
-// Event handler untuk block break (mining)
-@EventHandler
-public void onBlockBreak(BlockBreakEvent event) {
-    if (!getConfig().getBoolean("log.mining", true)) return;
-    Player player = event.getPlayer();
-    String blockType = event.getBlock().getType().toString().toUpperCase();
-    String playerName = player.getName();
-
-    // Filter notifikasi mining
-    if (blockNotifyFilter.getOrDefault(blockType, false)) {
-        String coordinates = String.format("X: %d, Y: %d, Z: %d",
-            event.getBlock().getLocation().getBlockX(),
-            event.getBlock().getLocation().getBlockY(),
-            event.getBlock().getLocation().getBlockZ());
-        String raw = String.format(
-            "⛏️ *[Mining]*\n" +
-            "👷 *%s* menambang: `%s`\n" +
-            "📍 Koordinat: `%s`", 
-            playerName, 
-            blockType, 
-            coordinates
-        );
-        sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(raw));
+        });
     }
 
-    // Deteksi Xray berdasarkan ambang batas
-    int threshold = xrayThresholdMap.getOrDefault(blockType, -1);
-    if (threshold > 0) {
-        Map<String, Integer> blockCounts = playerMiningCount.computeIfAbsent(playerName, k -> new HashMap<>());
-        int currentCount = blockCounts.getOrDefault(blockType, 0) + 1;
-        blockCounts.put(blockType, currentCount);
-
-        if (currentCount == threshold) {
-            String warning = String.format(
-                "⚠️ *[Deteksi Xray]*\n" +
-                "🧱 *%s* telah menambang *%d blok* `%s`",
-                playerName, currentCount, blockType
-            );
-            sendToTelegram(notifyBotToken, notifyBotChatId, escapeMarkdownV2(warning));
-        }
-    }
-}
-    
-    // Fungsi untuk mengirim pesan ke Telegram
-    private void sendToTelegram(String botToken, String chatId, String message) {
-    if (botToken.isEmpty() || chatId.isEmpty()) {
-        getLogger().warning("Token atau Chat ID tidak valid!");
-        return;
-    }
-    if (message == null || message.trim().isEmpty()) return;
-
-    telegramExecutor.submit(() -> {
-        try {
-            // escape sekali di sini saja
-            String cleanedMsg = escapeMarkdownV2(message);
-
-            String payload = String.format(
-                "{\"chat_id\":\"%s\",\"text\":\"%s\",\"parse_mode\":\"MarkdownV2\"}",
-                chatId,
-                cleanedMsg
-            );
-
-            HttpURLConnection conn = (HttpURLConnection) new URL(
-                "https://api.telegram.org/bot" + botToken + "/sendMessage"
-            ).openConnection();
-
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(payload.getBytes(StandardCharsets.UTF_8));
-            }
-
-            if (conn.getResponseCode() != 200) {
-                getLogger().warning("Telegram API error: " + conn.getResponseMessage());
-            }
-
-            conn.disconnect();
-        } catch (Exception e) {
-            getLogger().warning("Gagal kirim Telegram: " + e.getMessage());
-        }
-    });
-}
-    
-// Method untuk escape karakter khusus MarkdownV2
-private String escapeMarkdownV2(String text) {
-    return text.replaceAll("([_\\[\\]()~`>#+\\-=|{}\\.!])", "\\\\$1");
-}
-    
-    // Membuat folder plugin dan konfigurasi jika belum ada
     private void createPluginFolderAndConfig() {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
-
         if (!new File(getDataFolder(), "config.yml").exists()) {
             saveDefaultConfig();
         }
     }
 
-    // Membaca IP dan Port dari config.yml
     private void loadServerConfig() {
-        serverIP = getConfig().getString("server.ip", "default_ip");
-        serverPort = getConfig().getInt("server.port", 19132);
+        serverIP   = getConfig().getString("server.ip", "default_ip");
+        serverPort = getConfig().getInt("server.port", 25565);
     }
 
     private void loadBlockFilterConfig() {
-    blockNotifyFilter.clear();
-    ConfigurationSection filterSection = getConfig().getConfigurationSection("block_notify_filter");
-    if (filterSection != null) {
-        for (String key : filterSection.getKeys(false)) {
-            blockNotifyFilter.put(key.toUpperCase(), filterSection.getBoolean(key));
+        blockNotifyFilter.clear();
+        ConfigurationSection filterSection = getConfig().getConfigurationSection("block_notify_filter");
+        if (filterSection != null) {
+            for (String key : filterSection.getKeys(false)) {
+                blockNotifyFilter.put(key.toUpperCase(), filterSection.getBoolean(key));
+            }
         }
     }
-}
 
-private void loadXrayThresholdConfig() {
-    xrayThresholdMap.clear();
-    ConfigurationSection thresholdSection = getConfig().getConfigurationSection("count_block_destroy_xray");
-    if (thresholdSection != null) {
-        for (String key : thresholdSection.getKeys(false)) {
-            xrayThresholdMap.put(key.toUpperCase(), thresholdSection.getInt(key));
+    private void loadXrayThresholdConfig() {
+        xrayThresholdMap.clear();
+        ConfigurationSection thresholdSection = getConfig().getConfigurationSection("count_block_destroy_xray");
+        if (thresholdSection != null) {
+            for (String key : thresholdSection.getKeys(false)) {
+                xrayThresholdMap.put(key.toUpperCase(), thresholdSection.getInt(key));
+            }
         }
     }
-}
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -328,19 +382,16 @@ private void loadXrayThresholdConfig() {
                 sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
                 return true;
             }
-
             if (args.length == 4) {
-                notifyBotToken = args[0];
+                notifyBotToken  = args[0];
                 notifyBotChatId = args[1];
-                controlBotToken = args[2];
+                controlBotToken  = args[2];
                 controlBotChatId = args[3];
-
-                getConfig().set("notifyBot.token", notifyBotToken);
+                getConfig().set("notifyBot.token",  notifyBotToken);
                 getConfig().set("notifyBot.chat_id", notifyBotChatId);
-                getConfig().set("controlBot.token", controlBotToken);
+                getConfig().set("controlBot.token",  controlBotToken);
                 getConfig().set("controlBot.chat_id", controlBotChatId);
                 saveConfig();
-
                 sender.sendMessage("§aToken dan ID grup Telegram untuk kedua bot berhasil diperbarui!");
                 return true;
             } else {
@@ -354,24 +405,19 @@ private void loadXrayThresholdConfig() {
                 sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
                 return true;
             }
-
             if (args.length == 2) {
                 try {
-                    String newIP = args[0];
-                    int newPort = Integer.parseInt(args[1]);
-
+                    String newIP   = args[0];
+                    int    newPort = Integer.parseInt(args[1]);
                     if (newPort < 1 || newPort > 65535) {
                         sender.sendMessage("§cPort harus antara 1-65535");
                         return false;
                     }
-
-                    getConfig().set("server.ip", newIP);
+                    getConfig().set("server.ip",   newIP);
                     getConfig().set("server.port", newPort);
                     saveConfig();
-
-                    serverIP = newIP;
+                    serverIP   = newIP;
                     serverPort = newPort;
-
                     sender.sendMessage("§aServer IP dan Port berhasil diperbarui!");
                     return true;
                 } catch (NumberFormatException e) {
@@ -389,67 +435,78 @@ private void loadXrayThresholdConfig() {
                 sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
                 return true;
             }
-
-            reloadConfig();
-            notifyBotToken = getConfig().getString("notifyBot.token", "");
-            notifyBotChatId = getConfig().getString("notifyBot.chat_id", "");
-            controlBotToken = getConfig().getString("controlBot.token", "");
-            controlBotChatId = getConfig().getString("controlBot.chat_id", "");
-            sender.sendMessage("§aKonfigurasi Telegram telah di-reload!");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                reloadConfig();
+                loadPerformanceConfig();
+                cacheConfigValues();
+                loadBlockFilterConfig();
+                loadXrayThresholdConfig();
+                notifyBotToken   = getConfig().getString("notifyBot.token", "");
+                notifyBotChatId  = getConfig().getString("notifyBot.chat_id", "");
+                controlBotToken  = getConfig().getString("controlBot.token", "");
+                controlBotChatId = getConfig().getString("controlBot.chat_id", "");
+                Bukkit.getScheduler().runTask(this, () ->
+                    sender.sendMessage("§aKonfigurasi Telegram telah di-reload!")
+                );
+            });
             return true;
         }
 
         if (command.getName().equalsIgnoreCase("status")) {
-    int onlinePlayers = Bukkit.getOnlinePlayers().size();
-    int maxPlayers = Bukkit.getMaxPlayers();
+            if (!sender.hasPermission("telechat.admin")) {
+                sender.sendMessage("§cAnda tidak memiliki izin untuk perintah ini!");
+                return true;
+            }
 
-    // Builder & data final agar bisa dipakai dalam runnable
-    StringBuilder playerList = new StringBuilder();
-    long totalPing = 0;
-    int counted = 0;
+            int onlinePlayers = Bukkit.getOnlinePlayers().size();
+            int maxPlayers    = Bukkit.getMaxPlayers();
 
-    for (Player p : Bukkit.getOnlinePlayers()) {
-        try {
-            int ping = p.getPing();
-            totalPing += ping;
-            counted++;
-            playerList.append("- ")
-                    .append(p.getName())
-                    .append(" (")
-                    .append(ping)
-                    .append("ms)\n");
-        } catch (Exception ignored) {}
-    }
+            StringBuilder playerList = new StringBuilder();
+            long totalPing = 0;
+            int  counted   = 0;
 
-    // Buat data final supaya bisa dipakai di dalam run()
-    final String playersText = playerList.length() > 0 ? playerList.toString() : "- Tidak ada pemain online\n";
-    final long averagePing = counted > 0 ? totalPing / counted : 0;
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                try {
+                    int ping = p.getPing();
+                    totalPing += ping;
+                    counted++;
+                    playerList.append("\\- ")
+                              .append(escapeMd(p.getName()))
+                              .append(" \\(").append(ping).append("ms\\)\n");
+                } catch (Exception ignored) {}
+            }
 
-    new BukkitRunnable() {
-        @Override
-        public void run() {
-            String message = String.format(
-                "📊 *[Status Server]*\n" +
-                "🟢 *Online:* %d/%d\n" +
-                "👥 *Pemain:*\n%s\n" +
-                "🌐 *IP:* `%s`\n" +
-                "🔌 *Port:* `%d`\n" +
-                "⏱️ *Ping Rata-rata:* `%dms`",
-                onlinePlayers, 
-                maxPlayers, 
-                playersText,  // Daftar pemain (format: "- Name (pingms)\n")
-                serverIP, 
-                serverPort, 
-                averagePing
-            );
+            final String playersText   = playerList.length() > 0
+                ? playerList.toString()
+                : "\\- Tidak ada pemain online\n";
+            final long   averagePing   = counted > 0 ? totalPing / counted : 0;
+            final String escapedIP     = escapeMd(serverIP);
 
-            sendToTelegram(controlBotToken, controlBotChatId, escapeMarkdownV2(message));
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    String message = String.format(
+                        "📊 *\\[Status Server\\]*\n" +
+                        "🟢 *Online:* %d/%d\n" +
+                        "👥 *Pemain:*\n%s\n" +
+                        "🌐 *IP:* `%s`\n" +
+                        "🔌 *Port:* `%d`\n" +
+                        "⏱️ *Ping Rata\\-rata:* `%dms`",
+                        onlinePlayers,
+                        maxPlayers,
+                        playersText,
+                        escapedIP,
+                        serverPort,
+                        averagePing
+                    );
+                    sendToTelegram(controlBotToken, controlBotChatId, message, "status");
+                }
+            }.runTaskAsynchronously(this);
+
+            sender.sendMessage("§aStatus server telah dikirim ke Telegram.");
+            return true;
         }
-    }.runTaskAsynchronously(this);
 
-    sender.sendMessage("§aStatus server telah dikirim ke Telegram.");
-    return true;
-}
         return false;
     }
 }
